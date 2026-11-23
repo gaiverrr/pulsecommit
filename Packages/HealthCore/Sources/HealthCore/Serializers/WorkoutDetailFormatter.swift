@@ -40,7 +40,7 @@ struct WorkoutDetailFormatter: Sendable {
 
         let intervals = workout.recordedIntervals ?? []
         lines.append(contentsOf: intervalLines(intervals.filter { $0.kind == .lap }, noun: "lap", timeZone: timeZone))
-        lines.append(contentsOf: intervalLines(intervals.filter { $0.kind == .segment }, noun: "segment", timeZone: timeZone))
+        lines.append(contentsOf: intervalLines(intervals.filter { $0.kind == .segment }, noun: "segment", timeZone: timeZone, distanceKm: workout.distanceKm))
 
         if includesHeartRateZones, let zones = workout.heartRateZones {
             lines.append("HR zones (custom, estimated)")
@@ -59,7 +59,8 @@ struct WorkoutDetailFormatter: Sendable {
     private func intervalLines(
         _ intervals: [WorkoutRecordedIntervalDTO],
         noun: String,
-        timeZone: TimeZone
+        timeZone: TimeZone,
+        distanceKm: Double? = nil
     ) -> [String] {
         let valid = intervals.compactMap { interval -> (WorkoutRecordedIntervalDTO, String)? in
             guard interval.endDate > interval.startDate,
@@ -70,7 +71,8 @@ struct WorkoutDetailFormatter: Sendable {
         let plural = noun + "s"
         let series = contiguousSeries(valid)
         let shown = series.primary
-        var lines = ["Recorded \(plural) (\(shown.count), elapsed)"]
+        let unit = series.otherCount > 0 ? splitUnit(distanceKm: distanceKm, count: shown.count) : nil
+        var lines = ["Recorded \(plural) (\(shown.count)\(unit.map { " \($0) splits" } ?? ""), elapsed)"]
         for (index, item) in shown.prefix(4).enumerated() {
             lines.append("  \(noun.capitalized) \(index + 1): \(local(item.0.startDate, in: timeZone, includesSeconds: true))–\(local(item.0.endDate, in: timeZone, includesSeconds: true)) · \(item.1)")
         }
@@ -96,6 +98,14 @@ struct WorkoutDetailFormatter: Sendable {
         return lines
     }
 
+    private func splitUnit(distanceKm: Double?, count: Int) -> String? {
+        guard let distance = positiveFinite(distanceKm), count > 0 else { return nil }
+        let metersPerSplit = distance * 1_000 / Double(count)
+        if abs(metersPerSplit - 1_000) <= 100 { return "km" }
+        if abs(metersPerSplit - 1_609.344) <= 160 { return "mile" }
+        return nil
+    }
+
     private func contiguousSeries(
         _ items: [(WorkoutRecordedIntervalDTO, String)]
     ) -> (primary: [(WorkoutRecordedIntervalDTO, String)], otherCount: Int, otherSeries: Int) {
@@ -106,16 +116,31 @@ struct WorkoutDetailFormatter: Sendable {
         }.map(\.element)
         var chains: [[(WorkoutRecordedIntervalDTO, String)]] = []
         for item in sorted {
-            if let index = chains.firstIndex(where: { chain in
-                guard let last = chain.last else { return false }
-                return abs(item.0.startDate.timeIntervalSince(last.0.endDate)) <= 1
-            }) {
+            let candidates = chains.indices.compactMap { index -> (index: Int, gap: Double, durationDelta: Double)? in
+                guard let last = chains[index].last else { return nil }
+                let gap = abs(item.0.startDate.timeIntervalSince(last.0.endDate))
+                guard gap <= 1 else { return nil }
+                return (index, gap, abs(last.0.durationSeconds - item.0.durationSeconds))
+            }
+            let best = candidates.min { lhs, rhs in
+                lhs.gap != rhs.gap ? lhs.gap < rhs.gap : lhs.durationDelta < rhs.durationDelta
+            }
+            if let index = best?.index {
                 chains[index].append(item)
             } else {
                 chains.append([item])
             }
         }
-        guard chains.filter({ $0.count > 1 }).count >= 2 else { return (items, 0, 0) }
+        let multi = chains.filter { $0.count > 1 }
+        let hasParallelSeries = multi.indices.contains { i in
+            multi.indices.contains { j in
+                guard i < j,
+                      let aStart = multi[i].first?.0.startDate, let aEnd = multi[i].last?.0.endDate,
+                      let bStart = multi[j].first?.0.startDate, let bEnd = multi[j].last?.0.endDate else { return false }
+                return aStart < bEnd && bStart < aEnd
+            }
+        }
+        guard hasParallelSeries else { return (items, 0, 0) }
         let primary = chains.dropFirst().reduce(chains[0]) { best, chain in
             chain.count > best.count ? chain : best
         }

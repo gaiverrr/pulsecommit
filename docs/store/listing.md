@@ -65,7 +65,7 @@ Support: hi@pulsecommit.app
 ## Keywords
 
 ```
-telegram,json,healthkit,data,auto,backup,gpx,shortcuts,quantified,self,workout,sleep,hrv,git,agent
+telegram,json,healthkit,data,auto,backup,gpx,shortcuts,quantified,self,workout,sleep,hrv,git,steps
 ```
 
 ## URLs
