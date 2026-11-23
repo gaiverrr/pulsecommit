@@ -8,9 +8,68 @@ Pull requests are welcome: new Health categories, export formats, destinations, 
 
 ## Example export
 
-One real day from the maintainer's own data repository (2026-08-28). GPS routes and raw sample files are omitted here.
+Real data from the maintainer's own exports. GPS routes and raw sample files are omitted here.
 
-Each export is one commit:
+### Telegram
+
+A monospace summary followed by a ZIP of the JSON files (2026-11-23):
+
+```
+🫀 Pulse Commit · 2026-11-23
+
+Activity
+  Steps              19 651
+  Active energy      1532 kcal
+  Rings              Stand 3h · Exercise 100m
+
+Heart
+  Resting HR         57 bpm
+  HRV (SDNN)         35 ms · 9 measurements
+  VO₂ max            65
+
+Sleep
+  Duration           6h 59m
+  Stages             Deep 0h57m · REM 1h26m · Core 4h35m
+  Awake              13 min
+  Fell asleep        2026-11-23 00:21
+  Woke up            2026-11-23 07:34
+
+Sleep breathing
+  Respiratory rate   14.5 breaths/min
+
+Body
+  Weight             78.7 kg
+
+Wrist temperature
+  Sleeping temp      36.96 °C
+  Change             +0.71 °C
+  Baseline           PulseCommit: 36.26 °C · 13 nights / 28d
+
+Workouts (1)
+  Outdoor Run
+    Time (Europe/Lisbon): 18:44–20:20
+    Duration: 1h 32m 8.9s · Distance: 17.0 km
+    Avg pace: 5:25/km · Active energy: 1209 kcal
+    Heart rate: avg 125 bpm · max 210 bpm
+    Recorded segments (29, elapsed)
+      …
+
+Raw sample counts
+  hrv_sdnn           9
+  respiratory_rate   43
+  wrist_temperature  1
+
+Generated: 2026-11-23 22:21
+Latest sample: 2026-11-23 22:08
+Time zone: Europe/Lisbon
+schema_version: 1.0
+
+📎 pulse-commit-2026-11-23.zip · 369.1 KB · 16 files
+```
+
+### GitHub
+
+Each export is one commit (2026-08-28):
 
 ```
 chore: pulse 2026-08-28 · 10055 steps · 2 workouts · sleep 6h54m
@@ -37,33 +96,6 @@ chore: pulse 2026-08-28 · 10055 steps · 2 workouts · sleep 6h54m
 │   └── C044D152-…-swimming.json
 └── routes/
     └── B9E9A3ED-…-walking.gpx
-```
-
-`summary.md` (the same text goes to Telegram, followed by a ZIP of the files):
-
-```
-🫀 Pulse Commit · 2026-08-28
-
-🏃 Activity
-• Steps: 10 055
-• Active energy: 919 kcal
-• Stand: 2 h · Exercise: 92 min
-
-❤️ Heart
-• Resting HR: 53 bpm
-• HRV (SDNN): 50 ms
-• VO₂ max: 61.7
-
-😴 Sleep
-• Duration: 6h 54m
-• Deep 0h45m · REM 1h21m · Core 4h47m
-
-⚖️ Body
-• Weight: 77.7 kg
-
-🏋️ Workouts (2)
-• Walking — 45 min · 4.2 km
-• Swimming — 35 min · 1.5 km
 ```
 
 `summary.json` (excerpt):
