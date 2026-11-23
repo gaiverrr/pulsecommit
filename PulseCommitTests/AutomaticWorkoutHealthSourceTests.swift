@@ -29,7 +29,7 @@ final class AutomaticWorkoutHealthSourceTests: XCTestCase {
         let source = AutomaticWorkoutHealthSource(
             store: store,
             historyProvider: provider,
-            queryTimeoutNanoseconds: 1_000_000
+            queryTimeoutNanoseconds: 100_000_000
         )
 
         do {

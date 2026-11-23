@@ -35,4 +35,4 @@ jobs:
           xcodebuild test -project PulseCommit.xcodeproj -scheme PulseCommit \
             -destination "id=$SIM" \
             -skip-testing:PulseCommitTests/ArchiveVerificationTests \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=
