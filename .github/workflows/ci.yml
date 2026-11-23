@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select newest Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+      - name: Tone check
+        run: scripts/verify-tone.sh
+      - name: HealthCore tests
+        run: swift test --package-path Packages/HealthCore
+      - name: Generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: App tests
+        run: |
+          SIM=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; ids=[x["udid"] for k,v in sorted(d.items()) if "iOS" in k for x in v if x["name"].startswith("iPhone")]; print(ids[-1])')
+          xcodebuild test -project PulseCommit.xcodeproj -scheme PulseCommit \
+            -destination "id=$SIM" \
+            -skip-testing:PulseCommitTests/ArchiveVerificationTests \
+            CODE_SIGNING_ALLOWED=NO

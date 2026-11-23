@@ -1,0 +1,27 @@
+.DS_Store
+**/.DS_Store
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+.build/
+build/
+.swiftpm/
+*.profraw
+*.xcresult
+.env
+.ralphex/
+PulseCommit/Generated/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+
+# Agent skills installed locally via `npx skills add` — stealth, project-local only
+.agents/
+.claude/skills/
+skills-lock.json
+
+# Claude Code harness runtime artifacts
+.claude/

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pulse Commit · iOS design</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; background: #0a0a0a;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro", system-ui, sans-serif;
+    color: #fafafa;
+    min-height: 100vh; overflow: hidden;
+  }
+  * { box-sizing: border-box; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  /* Canvas surface color override — match dark dev theme */
+  body { background: #14130f; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="design-system.jsx"></script>
+<script type="text/babel" src="screens.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "lime",
+  "homeState": "idle",
+  "trial": "trial"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const accent = ACCENTS[t.accent] || ACCENTS.crimson;
+  const unlocked = t.trial === 'unlocked';
+
+  // Artboard dimensions: full iPhone size + small padding for shadow
+  const W = 410, H = 882;
+
+  // The "Home" artboards react to homeState + unlocked
+  // Others mostly just react to accent + unlocked.
+
+  return (
+    <React.Fragment>
+      <DesignCanvas
+        title="Pulse Commit · iOS"
+        subtitle="Hi-fi designs · dark terminal aesthetic · all screens"
+      >
+        <DCSection
+          id="home"
+          title="Home · main screen"
+          subtitle="Two directions: bold opinion vs commit-graph. Pick one or mix."
+        >
+          <DCArtboard id="home-a" label="A · Big Button" width={W} height={H}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
+              <HomeA accent={accent} state={t.homeState} unlocked={unlocked} />
+            </div>
+          </DCArtboard>
+          <DCArtboard id="home-b" label="B · Commit Graph" width={W} height={H}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
+              <HomeB accent={accent} state={t.homeState} unlocked={unlocked} />
+            </div>
+          </DCArtboard>
+          <DCArtboard id="first-run" label="C · First run / empty" width={W} height={H}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
+              <FirstRun accent={accent} />
+            </div>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection
+          id="data"
+          title="Configuration"
+          subtitle="What is exported and where it goes."
+        >
+          <DCArtboard id="cats" label="Categories" width={W} height={H}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
+              <Categories accent={accent} />
+            </div>
+          </DCArtboard>
+          <DCArtboard id="dest-gh" label="Destination · GitHub" width={W} height={H}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
+              <DestGitHub accent={accent} />
+            </div>
+          </DCArtboard>
+          <DCArtboard id="dest-tg" label="Destination · Telegram" width={W} height={H}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
+              <DestTelegram accent={accent} />
+            </div>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection
+          id="meta"
+          title="History · Settings · Automate"
+          subtitle="Background, ops, automation."
+        >
+          <DCArtboard id="history" label="History · git log" width={W} height={H}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
+              <History accent={accent} />
+            </div>
+          </DCArtboard>
+          <DCArtboard id="settings" label="Settings" width={W} height={H}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
+              <Settings accent={accent} unlocked={unlocked} />
+            </div>
+          </DCArtboard>
+          <DCArtboard id="shortcuts" label="Shortcuts · App Intents" width={W} height={H}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
+              <Shortcuts accent={accent} />
+            </div>
+          </DCArtboard>
+          <DCArtboard id="paywall" label="Paywall · $9.99 unlock" width={W} height={H}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 4 }}>
+              <Paywall accent={accent} />
+            </div>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection label="Accent" />
+        <TweakColor
+          label="Color"
+          value={accent.hue}
+          options={Object.values(ACCENTS).map(a => a.hue)}
+          onChange={(v) => {
+            const key = Object.keys(ACCENTS).find(k => ACCENTS[k].hue === v);
+            if (key) setTweak('accent', key);
+          }}
+        />
+        <TweakSection label="Home state" />
+        <TweakSelect
+          label="Status"
+          value={t.homeState}
+          options={['idle', 'running', 'done', 'error']}
+          onChange={(v) => setTweak('homeState', v)}
+        />
+        <TweakSection label="Entitlement" />
+        <TweakRadio
+          label="Tier"
+          value={t.trial}
+          options={['trial', 'unlocked']}
+          onChange={(v) => setTweak('trial', v)}
+        />
+      </TweaksPanel>
+    </React.Fragment>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

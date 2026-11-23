@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="round"><circle cx="512" cy="512" r="512"></circle></clipPath>
+    <radialGradient id="glow2" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#A4F03A" stop-opacity="0.22"></stop>
+      <stop offset="60%" stop-color="#A4F03A" stop-opacity="0"></stop>
+    </radialGradient>
+  </defs>
+  <g clip-path="url(#round)">
+    <rect width="1024" height="1024" fill="#0a0a0a"></rect>
+    <rect width="1024" height="1024" fill="url(#glow2)"></rect>
+    <path d="M 92 512 L 307 512 L 384 358 L 461 666 L 538 512 L 676 512 L 742 512" stroke="#A4F03A" stroke-width="56" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+    <circle cx="809" cy="512" r="67" fill="#A4F03A"></circle>
+  </g>
+</svg>
