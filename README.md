@@ -6,6 +6,94 @@ iOS 17+ app that exports Apple Health (HealthKit) data to two user-owned destina
 
 Pull requests are welcome: new Health categories, export formats, destinations, fixes. Read [CONTRIBUTING.md](CONTRIBUTING.md) first; for anything larger than a bug fix, open an issue to agree on the approach before writing code. Architecture, design tokens and known pitfalls are in [AGENTS.md](AGENTS.md).
 
+## Example export
+
+One real day from the maintainer's own data repository (2026-08-28). GPS routes and raw sample files are omitted here.
+
+Each export is one commit:
+
+```
+chore: pulse 2026-08-28 · 10055 steps · 2 workouts · sleep 6h54m
+```
+
+```
+2026-08-28/
+├── summary.json
+├── summary.md
+├── samples/
+│   ├── active_energy.json
+│   ├── activity_rings.json
+│   ├── body_mass.json
+│   ├── distance_walking_running.json
+│   ├── heart_rate.json
+│   ├── hrv_sdnn.json
+│   ├── resting_heart_rate.json
+│   ├── sleep.json
+│   ├── steps.json
+│   ├── vo2_max.json
+│   └── workouts.json
+├── workouts/
+│   ├── B9E9A3ED-…-walking.json
+│   └── C044D152-…-swimming.json
+└── routes/
+    └── B9E9A3ED-…-walking.gpx
+```
+
+`summary.md` (the same text goes to Telegram, followed by a ZIP of the files):
+
+```
+🫀 Pulse Commit · 2026-08-28
+
+🏃 Activity
+• Steps: 10 055
+• Active energy: 919 kcal
+• Stand: 2 h · Exercise: 92 min
+
+❤️ Heart
+• Resting HR: 53 bpm
+• HRV (SDNN): 50 ms
+• VO₂ max: 61.7
+
+😴 Sleep
+• Duration: 6h 54m
+• Deep 0h45m · REM 1h21m · Core 4h47m
+
+⚖️ Body
+• Weight: 77.7 kg
+
+🏋️ Workouts (2)
+• Walking — 45 min · 4.2 km
+• Swimming — 35 min · 1.5 km
+```
+
+`summary.json` (excerpt):
+
+```json
+{
+  "schema_version": "1.0",
+  "date": "2026-08-28",
+  "timezone": "Europe/Lisbon",
+  "metrics": {
+    "steps": { "total": 10055, "unit": "count" },
+    "active_energy": { "total": 919, "unit": "kcal" },
+    "resting_heart_rate": { "value": 53, "unit": "bpm" },
+    "hrv_sdnn": { "avg": 50, "unit": "ms" },
+    "vo2_max": { "value": 61.7, "unit": "ml/kg·min" },
+    "sleep": {
+      "duration_minutes": 414,
+      "stage_deep": 45, "stage_rem": 81, "stage_core": 287, "stage_awake": 10,
+      "unit": "min"
+    },
+    "body_mass": { "value": 77.7, "unit": "kg" }
+  },
+  "workouts": [
+    { "type": "walking", "duration_minutes": 45, "distance_km": 4.2, "active_energy_kcal": 220, "has_route": true },
+    { "type": "swimming", "duration_minutes": 35, "distance_km": 1.5, "active_energy_kcal": 363, "has_route": false }
+  ],
+  "unavailable_categories": ["nutrition"]
+}
+```
+
 ## Setup
 
 Install XcodeGen (one-time):
