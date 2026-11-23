@@ -40,7 +40,7 @@ struct WorkoutDetailFormatter: Sendable {
 
         let intervals = workout.recordedIntervals ?? []
         lines.append(contentsOf: intervalLines(intervals.filter { $0.kind == .lap }, noun: "lap", timeZone: timeZone))
-        lines.append(contentsOf: intervalLines(intervals.filter { $0.kind == .segment }, noun: "segment", timeZone: timeZone))
+        lines.append(contentsOf: intervalLines(intervals.filter { $0.kind == .segment }, noun: "segment", timeZone: timeZone, distanceKm: workout.distanceKm))
 
         if includesHeartRateZones, let zones = workout.heartRateZones {
             lines.append("HR zones (custom, estimated)")
@@ -59,7 +59,8 @@ struct WorkoutDetailFormatter: Sendable {
     private func intervalLines(
         _ intervals: [WorkoutRecordedIntervalDTO],
         noun: String,
-        timeZone: TimeZone
+        timeZone: TimeZone,
+        distanceKm: Double? = nil
     ) -> [String] {
         let valid = intervals.compactMap { interval -> (WorkoutRecordedIntervalDTO, String)? in
             guard interval.endDate > interval.startDate,
@@ -68,11 +69,14 @@ struct WorkoutDetailFormatter: Sendable {
         }
         guard !valid.isEmpty else { return [] }
         let plural = noun + "s"
-        var lines = ["Recorded \(plural) (\(valid.count), elapsed)"]
-        for (index, item) in valid.prefix(4).enumerated() {
+        let series = contiguousSeries(valid)
+        let shown = series.primary
+        let unit = series.otherCount > 0 ? splitUnit(distanceKm: distanceKm, count: shown.count) : nil
+        var lines = ["Recorded \(plural) (\(shown.count)\(unit.map { " \($0) splits" } ?? ""), elapsed)"]
+        for (index, item) in shown.prefix(4).enumerated() {
             lines.append("  \(noun.capitalized) \(index + 1): \(local(item.0.startDate, in: timeZone, includesSeconds: true))–\(local(item.0.endDate, in: timeZone, includesSeconds: true)) · \(item.1)")
         }
-        let remainder = valid.count - min(valid.count, 4)
+        let remainder = shown.count - min(shown.count, 4)
         if remainder > 0 {
             switch remainderStyle {
             case .jsonAttachment:
@@ -81,7 +85,66 @@ struct WorkoutDetailFormatter: Sendable {
                 lines.append("  \(remainder) more \(remainder == 1 ? noun : plural) omitted")
             }
         }
+        if series.otherCount > 0 {
+            let otherNoun = series.otherCount == 1 ? noun : plural
+            let seriesText = series.otherSeries == 1 ? "an overlapping series" : "\(series.otherSeries) overlapping series"
+            switch remainderStyle {
+            case .jsonAttachment:
+                lines.append("  +\(series.otherCount) \(otherNoun) from \(seriesText) in JSON")
+            case .omitted:
+                lines.append("  \(series.otherCount) \(otherNoun) from \(seriesText) omitted")
+            }
+        }
         return lines
+    }
+
+    private func splitUnit(distanceKm: Double?, count: Int) -> String? {
+        guard let distance = positiveFinite(distanceKm), count > 0 else { return nil }
+        let metersPerSplit = distance * 1_000 / Double(count)
+        if abs(metersPerSplit - 1_000) <= 100 { return "km" }
+        if abs(metersPerSplit - 1_609.344) <= 160 { return "mile" }
+        return nil
+    }
+
+    private func contiguousSeries(
+        _ items: [(WorkoutRecordedIntervalDTO, String)]
+    ) -> (primary: [(WorkoutRecordedIntervalDTO, String)], otherCount: Int, otherSeries: Int) {
+        let sorted = items.enumerated().sorted {
+            $0.element.0.startDate == $1.element.0.startDate
+                ? $0.offset < $1.offset
+                : $0.element.0.startDate < $1.element.0.startDate
+        }.map(\.element)
+        var chains: [[(WorkoutRecordedIntervalDTO, String)]] = []
+        for item in sorted {
+            let candidates = chains.indices.compactMap { index -> (index: Int, gap: Double, durationDelta: Double)? in
+                guard let last = chains[index].last else { return nil }
+                let gap = abs(item.0.startDate.timeIntervalSince(last.0.endDate))
+                guard gap <= 1 else { return nil }
+                return (index, gap, abs(last.0.durationSeconds - item.0.durationSeconds))
+            }
+            let best = candidates.min { lhs, rhs in
+                lhs.gap != rhs.gap ? lhs.gap < rhs.gap : lhs.durationDelta < rhs.durationDelta
+            }
+            if let index = best?.index {
+                chains[index].append(item)
+            } else {
+                chains.append([item])
+            }
+        }
+        let multi = chains.filter { $0.count > 1 }
+        let hasParallelSeries = multi.indices.contains { i in
+            multi.indices.contains { j in
+                guard i < j,
+                      let aStart = multi[i].first?.0.startDate, let aEnd = multi[i].last?.0.endDate,
+                      let bStart = multi[j].first?.0.startDate, let bEnd = multi[j].last?.0.endDate else { return false }
+                return aStart < bEnd && bStart < aEnd
+            }
+        }
+        guard hasParallelSeries else { return (items, 0, 0) }
+        let primary = chains.dropFirst().reduce(chains[0]) { best, chain in
+            chain.count > best.count ? chain : best
+        }
+        return (primary, items.count - primary.count, chains.count - 1)
     }
 
     private func workoutDuration(_ workout: WorkoutDTO) -> String {

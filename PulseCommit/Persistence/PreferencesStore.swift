@@ -28,6 +28,15 @@ final class PreferencesStore {
         static let automaticWorkoutRegistrationFailed = "pulse_commit.telegram.automatic_workouts_registration_failed"
         static let selectedPeriod = "pulse_commit.home.selected_period"
         static let healthPermissionNoticeDismissed = "pulse_commit.home.health_permission_notice_dismissed"
+        static let successfulManualExports = "pulse_commit.review.successful_manual_exports"
+    }
+
+    static let reviewPromptMilestones: Set<Int> = [3, 15, 50]
+
+    func recordSuccessfulManualExport() -> Bool {
+        let count = defaults.integer(forKey: Key.successfulManualExports) + 1
+        defaults.set(count, forKey: Key.successfulManualExports)
+        return Self.reviewPromptMilestones.contains(count)
     }
 
     // Persisted period selection for the Home big-button. Values mirror the
@@ -164,7 +173,8 @@ final class PreferencesStore {
             Key.automaticWorkoutTelegramEnabled,
             Key.automaticWorkoutRegistrationFailed,
             Key.selectedPeriod,
-            Key.healthPermissionNoticeDismissed
+            Key.healthPermissionNoticeDismissed,
+            Key.successfulManualExports
         ] {
             defaults.removeObject(forKey: key)
         }

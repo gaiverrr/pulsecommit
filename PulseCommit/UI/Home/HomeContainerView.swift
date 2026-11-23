@@ -1,8 +1,10 @@
+import StoreKit
 import SwiftUI
 import UIKit
 
 struct HomeContainerView: View {
     @EnvironmentObject var container: AppContainer
+    @Environment(\.requestReview) private var requestReview
     @Binding var selectedTab: RootTabView.Tab
     @Binding var destinationsPath: [RootTabView.DestinationsRoute]
     @AppStorage("onboarding_completed") private var onboardingCompleted: Bool = false
@@ -84,8 +86,11 @@ struct HomeContainerView: View {
                     )
                     .presentationDetents([.large])
                 }
-                .onChange(of: viewModel.phase) { _, _ in
+                .onChange(of: viewModel.phase) { _, newPhase in
                     refreshState()
+                    if case .done = newPhase, container.preferences.recordSuccessfulManualExport() {
+                        requestReview()
+                    }
                 }
             } else {
                 Theme.bg.ignoresSafeArea()
