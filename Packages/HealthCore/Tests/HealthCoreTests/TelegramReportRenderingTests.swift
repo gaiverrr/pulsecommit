@@ -207,6 +207,37 @@ final class TelegramReportRenderingTests: XCTestCase {
         }
     }
 
+    func test_parallelKilometerAndMileSplitsShowOneSeries() {
+        var snap = makeSnapshot()
+        let start = SampleFixtures.iso("2026-11-23T18:44:10Z")
+        func split(_ startOffset: TimeInterval, _ duration: TimeInterval) -> WorkoutRecordedIntervalDTO {
+            WorkoutRecordedIntervalDTO(
+                kind: .segment,
+                startDate: start.addingTimeInterval(startOffset),
+                endDate: start.addingTimeInterval(startOffset + duration),
+                durationSeconds: duration
+            )
+        }
+        let kilometers = (0..<17).map { split(Double($0) * 325, 325) }
+        let miles = (0..<10).map { split(Double($0) * 523, 523) }
+        let interleaved = zip(kilometers, miles).flatMap { [$0, $1] } + kilometers.dropFirst(10)
+        snap.workouts = [WorkoutDTO(
+            id: "run", type: .outdoorRun, startDate: start,
+            endDate: start.addingTimeInterval(5_600), durationMinutes: 92,
+            distanceKm: 17, activeEnergyKcal: 1_209, avgHeartRate: 125,
+            maxHeartRate: 170, route: [], durationSeconds: 5_528.9,
+            distanceMeters: 17_000, recordedIntervals: interleaved
+        )]
+
+        let markdown = SummaryMarkdownSerializer().serialize(snap, verbosity: .standard, flavor: .telegramV2)
+
+        XCTAssertTrue(markdown.contains("Recorded segments (17, elapsed)"), markdown)
+        XCTAssertTrue(markdown.contains("+13 more segments in JSON"), markdown)
+        XCTAssertTrue(markdown.contains("+10 segments from an overlapping series in JSON"), markdown)
+        XCTAssertTrue(markdown.contains("Segment 2: 18:49:35–18:55:00 · 5m 25s"), markdown)
+        XCTAssertFalse(markdown.contains("8m 43s"), markdown)
+    }
+
     func test_githubShowsEquivalentCyclingDetailsWhileCompactStaysCompact() {
         var snap = makeSnapshot()
         let start = SampleFixtures.iso("2026-05-14T10:00:00Z")

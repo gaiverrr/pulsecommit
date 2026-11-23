@@ -77,7 +77,14 @@ final class StoreListingTests: XCTestCase {
         XCTAssertLessThanOrEqual(byteCount, 100,
                                   "Keywords '\(keywords)' is \(byteCount) UTF-8 bytes (limit 100)")
         XCTAssertTrue(keywords.contains("healthkit"), "Keywords must include healthkit")
-        XCTAssertTrue(keywords.contains("github"), "Keywords must include github")
+        XCTAssertTrue(keywords.contains("telegram"), "Keywords must include telegram")
+        let subtitle = (extractField(body, heading: "Subtitle") ?? "").lowercased()
+        let indexedWords = Set(("pulse commit " + subtitle).split(whereSeparator: { !$0.isLetter }).map(String.init))
+        let keywordList = keywords.split(separator: ",").map(String.init)
+        XCTAssertFalse(keywordList.contains { $0.contains(" ") }, "Keywords must be comma-separated without spaces")
+        XCTAssertTrue(indexedWords.isDisjoint(with: keywordList),
+                      "Keywords repeat name/subtitle words: \(indexedWords.intersection(keywordList))")
+        XCTAssertEqual(Set(keywordList).count, keywordList.count, "Keywords must not repeat")
     }
 
     func test_description_isPlainTextWithinFourThousandCharacterLimit() throws {

@@ -68,11 +68,13 @@ struct WorkoutDetailFormatter: Sendable {
         }
         guard !valid.isEmpty else { return [] }
         let plural = noun + "s"
-        var lines = ["Recorded \(plural) (\(valid.count), elapsed)"]
-        for (index, item) in valid.prefix(4).enumerated() {
+        let series = contiguousSeries(valid)
+        let shown = series.primary
+        var lines = ["Recorded \(plural) (\(shown.count), elapsed)"]
+        for (index, item) in shown.prefix(4).enumerated() {
             lines.append("  \(noun.capitalized) \(index + 1): \(local(item.0.startDate, in: timeZone, includesSeconds: true))–\(local(item.0.endDate, in: timeZone, includesSeconds: true)) · \(item.1)")
         }
-        let remainder = valid.count - min(valid.count, 4)
+        let remainder = shown.count - min(shown.count, 4)
         if remainder > 0 {
             switch remainderStyle {
             case .jsonAttachment:
@@ -81,7 +83,43 @@ struct WorkoutDetailFormatter: Sendable {
                 lines.append("  \(remainder) more \(remainder == 1 ? noun : plural) omitted")
             }
         }
+        if series.otherCount > 0 {
+            let otherNoun = series.otherCount == 1 ? noun : plural
+            let seriesText = series.otherSeries == 1 ? "an overlapping series" : "\(series.otherSeries) overlapping series"
+            switch remainderStyle {
+            case .jsonAttachment:
+                lines.append("  +\(series.otherCount) \(otherNoun) from \(seriesText) in JSON")
+            case .omitted:
+                lines.append("  \(series.otherCount) \(otherNoun) from \(seriesText) omitted")
+            }
+        }
         return lines
+    }
+
+    private func contiguousSeries(
+        _ items: [(WorkoutRecordedIntervalDTO, String)]
+    ) -> (primary: [(WorkoutRecordedIntervalDTO, String)], otherCount: Int, otherSeries: Int) {
+        let sorted = items.enumerated().sorted {
+            $0.element.0.startDate == $1.element.0.startDate
+                ? $0.offset < $1.offset
+                : $0.element.0.startDate < $1.element.0.startDate
+        }.map(\.element)
+        var chains: [[(WorkoutRecordedIntervalDTO, String)]] = []
+        for item in sorted {
+            if let index = chains.firstIndex(where: { chain in
+                guard let last = chain.last else { return false }
+                return abs(item.0.startDate.timeIntervalSince(last.0.endDate)) <= 1
+            }) {
+                chains[index].append(item)
+            } else {
+                chains.append([item])
+            }
+        }
+        guard chains.filter({ $0.count > 1 }).count >= 2 else { return (items, 0, 0) }
+        let primary = chains.dropFirst().reduce(chains[0]) { best, chain in
+            chain.count > best.count ? chain : best
+        }
+        return (primary, items.count - primary.count, chains.count - 1)
     }
 
     private func workoutDuration(_ workout: WorkoutDTO) -> String {

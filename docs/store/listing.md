@@ -8,7 +8,7 @@ Pulse Commit
 
 ## Subtitle
 
-Apple Health to your GitHub
+Apple Health export to GitHub
 
 ## Promotional Text
 
@@ -65,7 +65,7 @@ Support: hi@pulsecommit.app
 ## Keywords
 
 ```
-healthkit,export,github,git,json,gpx,telegram,backup,quantified,self,developer,shortcuts,privacy
+telegram,json,healthkit,data,auto,backup,gpx,shortcuts,quantified,self,workout,sleep,hrv,git,agent
 ```
 
 ## URLs

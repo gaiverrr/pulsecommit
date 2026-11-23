@@ -10,6 +10,20 @@ final class PreferencesStoreTests: XCTestCase {
         return defaults
     }
 
+    func test_reviewPromptFiresOnlyAtSuccessfulExportMilestonesAndResetClearsTheCount() {
+        let defaults = makeDefaults()
+        let store = PreferencesStore(defaults: defaults)
+
+        let prompts = (1...50).filter { _ in store.recordSuccessfulManualExport() }
+        XCTAssertEqual(prompts, [3, 15, 50])
+        XCTAssertFalse(PreferencesStore(defaults: defaults).recordSuccessfulManualExport())
+
+        store.reset()
+        XCTAssertFalse(store.recordSuccessfulManualExport())
+        XCTAssertFalse(store.recordSuccessfulManualExport())
+        XCTAssertTrue(store.recordSuccessfulManualExport())
+    }
+
     func test_enabledCategoryIds_seedsAllMVPIdsOnFirstRead() {
         let store = PreferencesStore(defaults: makeDefaults())
         let ids = store.enabledCategoryIds
