@@ -50,7 +50,7 @@ struct ChangelogView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                Link(destination: AboutLinks.releases) {
+                Link(destination: AboutLinks.commitHistory) {
                     Text("Full history on GitHub")
                         .font(.pcBodySmall)
                         .foregroundStyle(Theme.accent)
@@ -67,6 +67,6 @@ struct ChangelogView: View {
 enum AboutLinks {
     static let website = URL(string: "https://pulsecommit.app")!
     static let source = URL(string: "https://github.com/gaiverrr/pulsecommit")!
-    static let releases = URL(string: "https://github.com/gaiverrr/pulsecommit/commits/main")!
+    static let commitHistory = URL(string: "https://github.com/gaiverrr/pulsecommit/commits/main")!
     static let contact = URL(string: "mailto:hi@pulsecommit.app")!
 }

@@ -13,7 +13,7 @@ final class AboutSectionTests: XCTestCase {
         XCTAssertEqual(AboutLinks.website.absoluteString, "https://pulsecommit.app")
         XCTAssertEqual(AboutLinks.source.absoluteString, "https://github.com/gaiverrr/pulsecommit")
         XCTAssertEqual(AboutLinks.contact.absoluteString, "mailto:hi@pulsecommit.app")
-        XCTAssertEqual(AboutLinks.releases.host, "github.com")
+        XCTAssertEqual(AboutLinks.commitHistory.host, "github.com")
     }
 
     func test_versionLabelIncludesBuildWhenPresent() {
