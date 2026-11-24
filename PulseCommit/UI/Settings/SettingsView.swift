@@ -50,6 +50,13 @@ struct SettingsView: View {
     private static let marketingVersion =
         (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0"
 
+    private static let buildNumber =
+        (Bundle.main.infoDictionary?["CFBundleVersion"] as? String) ?? ""
+
+    static func versionLabel(marketing: String, build: String) -> String {
+        build.isEmpty ? marketing : "\(marketing) (\(build))"
+    }
+
     private var general: some View {
         VStack(alignment: .leading, spacing: 8) {
             PCSectionHeader(title: "GENERAL")
@@ -158,11 +165,24 @@ struct SettingsView: View {
             PCSectionHeader(title: "ABOUT")
             PCCard(padding: 0) {
                 VStack(spacing: 0) {
-                    settingsRow(title: "Version", value: Self.marketingVersion, locked: false, accent: false)
+                    NavigationLink {
+                        ChangelogView()
+                    } label: {
+                        settingsRow(
+                            title: "Version",
+                            value: Self.versionLabel(marketing: Self.marketingVersion, build: Self.buildNumber),
+                            locked: false,
+                            accent: false
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(Text("Opens the changelog"))
                     Divider().background(Theme.divider)
-                    settingsRow(title: "Source", value: "github.com/pulsecommit", locked: false, accent: false)
+                    externalRow(title: "Website", value: "pulsecommit.app", url: AboutLinks.website)
                     Divider().background(Theme.divider)
-                    settingsRow(title: "Contact", value: "hi@pulsecommit.app", locked: false, accent: false)
+                    externalRow(title: "Source code", value: "gaiverrr/pulsecommit", url: AboutLinks.source)
+                    Divider().background(Theme.divider)
+                    externalRow(title: "Contact", value: "hi@pulsecommit.app", url: AboutLinks.contact)
                     Divider().background(Theme.divider)
                     NavigationLink {
                         LicensesView()
@@ -183,7 +203,21 @@ struct SettingsView: View {
             .padding(.top, 12)
     }
 
-    private func settingsRow(title: String, value: String, locked: Bool, accent: Bool, valueColor: Color? = nil, titleColor: Color? = nil) -> some View {
+    private func externalRow(title: String, value: String, url: URL) -> some View {
+        Link(destination: url) {
+            settingsRow(
+                title: title,
+                value: value,
+                locked: false,
+                accent: false,
+                trailingSymbol: "arrow.up.right"
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(Text(url.scheme == "mailto" ? "Opens Mail" : "Opens in Safari"))
+    }
+
+    private func settingsRow(title: String, value: String, locked: Bool, accent: Bool, valueColor: Color? = nil, titleColor: Color? = nil, trailingSymbol: String = "chevron.right") -> some View {
         HStack(spacing: 12) {
             Text(title)
                 .font(.pcBodyLarge)
@@ -197,7 +231,9 @@ struct SettingsView: View {
             Text(value)
                 .font(accent ? .pcMonoDetail : .pcBodySmall)
                 .foregroundStyle(valueColor ?? (accent ? Theme.accent : Theme.muted))
-            Image(systemName: "chevron.right")
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Image(systemName: trailingSymbol)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.faint)
         }
