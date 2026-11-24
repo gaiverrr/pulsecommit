@@ -16,6 +16,7 @@ Free, no export limit. Daily Apple Health exports as JSON, Markdown and GPX to y
 
 ## What's New (1.0.1)
 
+- Settings → About: Version opens a changelog; Website, Source code and Contact links open in Safari or Mail.
 - Workout reports show one split series. Apple Watch records kilometer and mile splits in parallel; Telegram messages now list the main series (labeled km or mile splits) instead of mixing both. All splits stay in the JSON.
 - After a few successful exports, the app may ask for an App Store rating once. iOS limits how often this appears.
 
