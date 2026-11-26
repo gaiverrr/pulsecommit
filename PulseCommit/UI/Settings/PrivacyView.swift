@@ -11,12 +11,12 @@ struct PrivacyView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         privacyParagraph(
                             title: "We collect nothing.",
-                            body: "Pulse Commit has no backend, no analytics, no telemetry. We do not see your Health data, your tokens, or even know that you installed the app."
+                            body: "Pulse Commit has no server of its own, no analytics, no telemetry. It connects only to api.github.com, github.com (sign-in), api.telegram.org, and the HTTPS webhook URL you enter. We do not see your Health data, your tokens, or even know that you installed the app."
                         )
                         Divider().background(Theme.divider)
                         privacyParagraph(
                             title: "Where your data goes.",
-                            body: "Before the first export to each exact GitHub repo or Telegram chat/topic, Pulse Commit shows the selected Health categories, formats, possible readers, and remote retention. You must allow each destination separately. GitHub data may be visible to collaborators, organization readers, or anyone if the repo is public. Telegram data may be available to chat members and bot operators; an AI service may process it only when you chose an AI-backed bot or chat. Pulse Commit has no AI integration."
+                            body: "Before the first export to each exact GitHub repo, Telegram chat/topic or webhook URL, Pulse Commit shows the selected Health categories, formats, possible readers, and remote retention. You must allow each destination separately. GitHub data may be visible to collaborators, organization readers, or anyone if the repo is public. Telegram data may be available to chat members and bot operators; an AI service may process it only when you chose an AI-backed bot or chat. The owner of your webhook URL receives the summary and file list, can keep them, and may pass them to an AI service. Pulse Commit has no AI integration."
                         )
                         Divider().background(Theme.divider)
                         privacyParagraph(
@@ -26,12 +26,12 @@ struct PrivacyView: View {
                         Divider().background(Theme.divider)
                         privacyParagraph(
                             title: "Tokens stay on device.",
-                            body: "GitHub OAuth tokens and Telegram bot tokens live in the iOS Keychain. They are never logged, never copied, never transmitted to us."
+                            body: "GitHub OAuth tokens, Telegram bot tokens and webhook tokens live in the iOS Keychain. They are never logged, never copied, never transmitted to us."
                         )
                         Divider().background(Theme.divider)
                         privacyParagraph(
                             title: "Reset is in your hands.",
-                            body: "Changing a destination or selected categories requires consent again. Disabling a destination or Settings → Reset all data clears its local consent along with local state. It does not delete commits in GitHub or messages in Telegram; remove those copies with the destination and, for bots, its operator."
+                            body: "Changing a destination or selected categories requires consent again. Disabling a destination or Settings → Reset all data clears its local consent along with local state. It does not delete commits in GitHub or messages in Telegram or data at your webhook; remove those copies with the destination and, for bots and webhooks, its operator."
                         )
                     }
                 }

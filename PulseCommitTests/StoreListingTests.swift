@@ -126,7 +126,7 @@ final class StoreListingTests: XCTestCase {
             "Description must contain the hero line verbatim"
         )
         XCTAssertTrue(
-            body.contains("If you don't have a GitHub account or a Telegram bot, this app is not for you."),
+            body.contains("If you don't have a GitHub repo, a Telegram bot or your own HTTPS endpoint, this isn't for you."),
             "Description must contain the anti-positioning sentence verbatim"
         )
         XCTAssertTrue(body.contains("Pulse Commit 1.0 is free."))

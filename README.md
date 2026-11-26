@@ -1,6 +1,6 @@
 # Pulse Commit
 
-Pulse Commit is an iOS 17+ app that exports Apple Health data to a GitHub repository you own, a Telegram chat, or both. Each GitHub export is one commit; each Telegram export is a MarkdownV2 summary plus a ZIP of the JSON files. If you opt in separately, the app also sends a short text message to Telegram for every finished workout saved to Health. That message has no route, raw samples, ZIP or JSON, and the app deduplicates it locally. There is no backend, no analytics and no in-app purchase. Version 1.0 is free.
+Pulse Commit is an iOS 17+ app that exports Apple Health data to a GitHub repository you own, a Telegram chat, an HTTPS webhook URL you enter, or any combination. Each GitHub export is one commit; each Telegram export is a MarkdownV2 summary plus a ZIP of the JSON files. If you opt in separately, the app also sends a short text message to Telegram for every finished workout saved to Health. That message has no route, raw samples, ZIP or JSON, and the app deduplicates it locally. Pulse Commit connects only to api.github.com, github.com (sign-in), api.telegram.org, and the HTTPS webhook URL you enter. It has no server of its own, no analytics and no in-app purchase. Version 1.0 is free.
 
 [Download on the App Store](https://apps.apple.com/app/pulse-commit/id6830329627) · [Website](https://pulsecommit.app) · [Privacy](https://pulsecommit.app/privacy)
 

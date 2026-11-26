@@ -89,7 +89,7 @@ struct HomeView: View {
                 Text("Welcome to Pulse Commit")
                     .font(.pcTitle)
                     .foregroundStyle(Theme.text)
-                Text("Export Apple Health data to a Telegram chat or GitHub repo. Tokens stay in Keychain. Health data is sent only during an export; a Telegram setup test sends the sample message you approve.")
+                Text("Export Apple Health data to a Telegram chat, GitHub repo or webhook. Tokens stay in Keychain. Health data is sent only during an export; a Telegram setup test sends the sample message you approve.")
                     .font(.pcBody)
                     .foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
