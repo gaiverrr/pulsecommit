@@ -84,11 +84,12 @@ Tests to write first:
 
 ## Reference receiver and App Review endpoint
 
-A small open-source Cloudflare Worker in a separate repository (not `pulsecommit-web`):
+A small open-source Cloudflare Worker in a separate repository (not `pulsecommit-web`), https://github.com/gaiverrr/pulsecommit-webhook-receiver. Its `review` environment is the App Review endpoint:
 - checks the token, validates that the body is the envelope above, returns `200 {"ok": true, "bytes": N}` and discards the body;
 - no storage and no logging of bodies or headers (Workers Logs and Logpush off for this Worker);
 - the review token is a Worker secret, never in Git; it goes to App Review notes only;
 - the same code is published as the "minimal receiver" recipe, with optional variants that store to R2 or forward to an agent.
+- an `inbox` environment of the same code keeps the latest 50 requests in KV for 7 days for development testing; it is never the App Review endpoint.
 
 The App Review note says the developer runs a test endpoint that accepts and immediately discards requests, so the "developer receives no data" claim stays true. Deploy only after owner approval.
 
