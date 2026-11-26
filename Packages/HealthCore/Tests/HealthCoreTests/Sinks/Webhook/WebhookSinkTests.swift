@@ -168,7 +168,7 @@ final class WebhookSinkTests: XCTestCase {
 
         XCTAssertEqual(WebhookMockTransport.captured.count, 2)
         XCTAssertEqual(sleeps.values, [7_000_000_000])
-        XCTAssertEqual(attempts.values, [1, 2])
+        XCTAssertEqual(attempts.values, [1])
     }
 
     func test_serverErrorsAndTransportFailuresRetryThenGiveUp() async throws {
@@ -240,8 +240,103 @@ final class WebhookSinkTests: XCTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer s3cret-token")
     }
 
+    func test_firstAttemptReportsNoRetryAndRetriesCarryReasons() async throws {
+        WebhookMockTransport.reset([ok(503), .failure(.networkConnectionLost), ok()])
+        final class Reasons: @unchecked Sendable {
+            let lock = NSLock(); var items: [String] = []
+            func add(_ s: String) { lock.lock(); items.append(s); lock.unlock() }
+        }
+        let reasons = Reasons()
+        let sleeps = SleepLog()
+        let sink = try makeSink(sleeps: sleeps)
+        _ = try await sink.deliver(snapshot: makeSnapshot(), files: makeFiles(), onAttempt: { attempt, total, reason in
+            reasons.add("\(attempt)/\(total) \(reason)")
+        })
+        XCTAssertEqual(reasons.items, ["1/3 HTTP 503", "2/3 network error"])
+        XCTAssertEqual(sleeps.values, [1_000_000_000, 2_000_000_000])
+    }
+
+    func test_retryAfterOn503AndCapAt60Seconds() async throws {
+        WebhookMockTransport.reset([ok(503, headers: ["Retry-After": "3"]), ok(429, headers: ["Retry-After": "600"]), ok()])
+        let sleeps = SleepLog()
+        let sink = try makeSink(sleeps: sleeps)
+        _ = try await sink.deliver(snapshot: makeSnapshot(), files: makeFiles())
+        XCTAssertEqual(sleeps.values, [3_000_000_000, 60_000_000_000])
+    }
+
+    func test_consentRevokedBetweenRetriesStopsDelivery() async throws {
+        WebhookMockTransport.reset([ok(503), ok()])
+        final class Gate: @unchecked Sendable { let lock = NSLock(); var calls = 0 }
+        let gate = Gate()
+        let sink = try makeSink(authorize: {
+            gate.lock.lock(); defer { gate.lock.unlock() }
+            gate.calls += 1
+            return gate.calls == 1
+        })
+        do {
+            _ = try await sink.deliver(snapshot: makeSnapshot(), files: makeFiles())
+            XCTFail("expected consent failure")
+        } catch HealthExportAuthorizationError.consentRequired {
+        }
+        XCTAssertEqual(WebhookMockTransport.captured.count, 1)
+    }
+
+    func test_requestUsesThirtySecondTimeout() async throws {
+        WebhookMockTransport.reset([ok()])
+        let sink = try makeSink()
+        _ = try await sink.deliver(snapshot: makeSnapshot(), files: makeFiles())
+        XCTAssertEqual(WebhookMockTransport.captured.first?.timeoutInterval, 30)
+    }
+
+    func test_cancellationIsNotReportedAsNetworkError() async throws {
+        WebhookMockTransport.reset([.failure(.cancelled), ok()])
+        let sink = try makeSink()
+        do {
+            _ = try await sink.deliver(snapshot: makeSnapshot(), files: makeFiles())
+            XCTFail("expected cancellation")
+        } catch is CancellationError {
+        }
+        XCTAssertEqual(WebhookMockTransport.captured.count, 1)
+    }
+
+    func test_invalidSummaryIsRejectedAndBOMIsStripped() async throws {
+        WebhookMockTransport.reset([ok()])
+        let sink = try makeSink()
+        do {
+            _ = try await sink.deliver(snapshot: makeSnapshot(), files: makeFiles(summary: Data("not json".utf8)))
+            XCTFail("expected failure")
+        } catch let error as WebhookSinkError {
+            XCTAssertEqual(error, .invalidSummary)
+        }
+        XCTAssertTrue(WebhookMockTransport.captured.isEmpty)
+
+        WebhookMockTransport.reset([ok()])
+        _ = try await sink.deliver(snapshot: makeSnapshot(), files: makeFiles(summary: Data([0xEF, 0xBB, 0xBF]) + summaryJSON))
+        XCTAssertNotNil(try body(XCTUnwrap(WebhookMockTransport.captured.first))["summary"] as? [String: Any])
+    }
+
+    func test_pacerSpacesConsecutiveRequests() async throws {
+        let pacer = RequestPacer()
+        let sleeps = SleepLog()
+        try await pacer.wait(minimumInterval: 2, sleep: { sleeps.append($0) })
+        try await pacer.wait(minimumInterval: 2, sleep: { sleeps.append($0) })
+        try await pacer.wait(minimumInterval: 2, sleep: { sleeps.append($0) })
+        XCTAssertEqual(sleeps.values.count, 2)
+        XCTAssertGreaterThan(sleeps.values[0], 1_900_000_000)
+        XCTAssertLessThanOrEqual(sleeps.values[0], 2_000_000_000)
+        XCTAssertGreaterThan(sleeps.values[1], 3_900_000_000)
+    }
+
+    func test_redirectBlockerDeclinesRedirect() async {
+        let blocker = RedirectBlocker()
+        let response = HTTPURLResponse(url: endpoint, statusCode: 307, httpVersion: nil, headerFields: nil)!
+        let task = URLSession.shared.dataTask(with: endpoint)
+        let next = await blocker.urlSession(.shared, task: task, willPerformHTTPRedirection: response, newRequest: URLRequest(url: URL(string: "https://elsewhere.example.net")!))
+        XCTAssertNil(next)
+    }
+
     func test_errorDescriptionsNeverContainSecrets() {
-        let errors: [WebhookSinkError] = [.httpStatus(401), .redirectRefused(301), .transportFailure(code: -1001), .invalidResponse, .missingSummary]
+        let errors: [WebhookSinkError] = [.httpStatus(401), .redirectRefused(301), .transportFailure(code: -1001), .invalidResponse, .missingSummary, .invalidSummary]
         for error in errors {
             let text = error.localizedDescription
             XCTAssertFalse(text.contains("s3cret"))
@@ -270,9 +365,24 @@ final class WebhookConfigurationTests: XCTestCase {
     }
 
     func test_rejectsBadOrReservedHeaderNames() {
-        for name in ["", "Bad Header", "X:Y", "Content-Type", "content-length", "Host", "Idempotency-Key", "X-Request-ID", "User-Agent"] {
+        for name in ["", "Bad Header", "X:Y", "Content-Type", "content-length", "Host", "Idempotency-Key", "X-Request-ID", "User-Agent", "Proxy-Authorization", "Transfer-Encoding", "Cookie"] {
             XCTAssertThrowsError(try WebhookConfiguration(endpoint: URL(string: "https://hooks.example.com")!, token: "t", tokenHeader: name), name)
         }
+    }
+
+    func test_rejectsLocalNetworkHosts() {
+        for host in ["localhost", "printer.local", "10.0.0.5", "192.168.1.20", "172.20.0.1", "127.0.0.1", "169.254.1.1", "[::1]", "[fd12::1]"] {
+            XCTAssertThrowsError(try WebhookConfiguration(endpoint: URL(string: "https://\(host)/hook")!, token: nil), host)
+        }
+        for host in ["agent.tail1a2b.ts.net", "172.32.0.1", "hooks.example.com", "100.100.1.1"] {
+            XCTAssertNoThrow(try WebhookConfiguration(endpoint: URL(string: "https://\(host)/hook")!, token: nil), host)
+        }
+    }
+
+    func test_trailingNewlineInPastedTokenIsTrimmed() throws {
+        let config = try WebhookConfiguration(endpoint: URL(string: "https://hooks.example.com")!, token: "abc123\n", tokenHeader: "Authorization\n")
+        XCTAssertEqual(config.token, "abc123")
+        XCTAssertEqual(config.tokenHeader, "Authorization")
     }
 
     func test_rejectsTokensWithLineBreaks() {

@@ -66,6 +66,12 @@ final class WebhookMockTransport: URLProtocol {
         case .failure(let code):
             client?.urlProtocol(self, didFailWithError: URLError(code))
         case .response(let resolved):
+            if (300..<400).contains(resolved.statusCode),
+               let location = resolved.headers["Location"],
+               let target = URL(string: location) {
+                let redirect = HTTPURLResponse(url: request.url!, statusCode: resolved.statusCode, httpVersion: "HTTP/1.1", headerFields: resolved.headers)!
+                client?.urlProtocol(self, wasRedirectedTo: URLRequest(url: target), redirectResponse: redirect)
+            }
             let http = HTTPURLResponse(
                 url: request.url!,
                 statusCode: resolved.statusCode,

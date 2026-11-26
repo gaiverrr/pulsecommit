@@ -67,7 +67,7 @@ One token, sent with every request. The URL may be public; without the token the
 ## Code
 
 HealthCore (URLProtocol-stub tests, test-first):
-- `Sinks/Webhook/WebhookSink.swift` (`id = "webhook"`), `WebhookPayload` encoder, `WebhookEndpointValidator`, `WebhookSinkError: LocalizedError` (status codes only, never URL path or token).
+- `Sinks/Webhook/WebhookSink.swift` (`id = "webhook"`), `WebhookPayload` encoder, `WebhookConfiguration` (validates the URL, header name and token; rejects local network hosts), `WebhookSinkError: LocalizedError` (status codes only, never URL path or token).
 
 App:
 - Destinations → Webhook screen: URL, token (Generate / Paste / Copy), header name, Send test, last result.

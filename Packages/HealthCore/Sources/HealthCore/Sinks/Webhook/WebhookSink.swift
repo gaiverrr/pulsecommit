@@ -6,6 +6,7 @@ public enum WebhookSinkError: Error, Equatable, Sendable {
     case transportFailure(code: Int)
     case invalidResponse
     case missingSummary
+    case invalidSummary
 }
 
 extension WebhookSinkError: LocalizedError {
@@ -28,6 +29,8 @@ extension WebhookSinkError: LocalizedError {
             return "Endpoint returned a non-HTTP response"
         case .missingSummary:
             return "This export has no summary.json to send"
+        case .invalidSummary:
+            return "This export's summary.json is not valid JSON"
         }
     }
 }
@@ -134,7 +137,9 @@ public final class WebhookSink: Sink {
         var reason = "starting"
 
         for attempt in 1...maxAttempts {
-            await onAttempt?(attempt, maxAttempts, reason)
+            if attempt > 1 {
+                await onAttempt?(attempt - 1, maxAttempts, reason)
+            }
             try await pacer.wait(minimumInterval: minimumInterval, sleep: sleep)
             if requiresConsent, !(await authorizePayload()) {
                 throw HealthExportAuthorizationError.consentRequired
@@ -144,6 +149,7 @@ public final class WebhookSink: Sink {
             do {
                 (_, response) = try await session.data(for: request, delegate: RedirectBlocker())
             } catch let error as URLError {
+                if error.code == .cancelled || Task.isCancelled { throw CancellationError() }
                 lastError = .transportFailure(code: error.code.rawValue)
                 reason = "network error"
                 if attempt < maxAttempts { try await sleep(backoff(attempt: attempt)) }
@@ -181,26 +187,23 @@ public final class WebhookSink: Sink {
     }
 }
 
-private actor RequestPacer {
-    private var lastStart: ContinuousClock.Instant?
+actor RequestPacer {
+    private let clock = ContinuousClock()
+    private var nextSlot: ContinuousClock.Instant?
 
     func wait(minimumInterval: TimeInterval, sleep: @Sendable (UInt64) async throws -> Void) async throws {
-        let clock = ContinuousClock()
-        if minimumInterval > 0, let lastStart {
-            let elapsed = clock.now - lastStart
-            let required = Duration.milliseconds(Int64(minimumInterval * 1000))
-            if elapsed < required {
-                let remaining = required - elapsed
-                let nanos = UInt64(remaining.components.seconds) * 1_000_000_000
-                    + UInt64(remaining.components.attoseconds / 1_000_000_000)
-                try await sleep(nanos)
-            }
-        }
-        lastStart = clock.now
+        let now = clock.now
+        let start = max(now, nextSlot ?? now)
+        nextSlot = start + .milliseconds(Int64(max(0, minimumInterval) * 1000))
+        let delay = start - now
+        guard delay > .zero else { return }
+        let nanos = UInt64(delay.components.seconds) * 1_000_000_000
+            + UInt64(delay.components.attoseconds / 1_000_000_000)
+        try await sleep(nanos)
     }
 }
 
-private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
+final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
     func urlSession(
         _ session: URLSession,
         task: URLSessionTask,

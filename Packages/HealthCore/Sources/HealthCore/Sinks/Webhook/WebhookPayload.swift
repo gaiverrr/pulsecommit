@@ -19,8 +19,14 @@ enum WebhookPayload {
         let relative = files.map { entry in
             (path: relativePath(entry.path, dayKey: dayKey), data: entry.data)
         }
-        guard let summary = relative.first(where: { $0.path == "summary.json" })?.data else {
+        guard var summary = relative.first(where: { $0.path == "summary.json" })?.data else {
             throw WebhookSinkError.missingSummary
+        }
+        if summary.starts(with: [0xEF, 0xBB, 0xBF]) {
+            summary = summary.dropFirst(3)
+        }
+        guard (try? JSONSerialization.jsonObject(with: summary)) is [String: Any] else {
+            throw WebhookSinkError.invalidSummary
         }
         let markdown = relative.first(where: { $0.path == "summary.md" }).map { String(decoding: $0.data, as: UTF8.self) } ?? ""
         let digest = SHA256.hash(data: summary).map { String(format: "%02x", $0) }.joined()
