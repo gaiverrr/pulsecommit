@@ -1,5 +1,45 @@
+import SwiftUI
+import UIKit
 import XCTest
 @testable import PulseCommit
+
+@MainActor
+final class HistoryRowBadgeLayoutTests: XCTestCase {
+    private let webhookLabel = "agent.example.net · HTTP 200"
+    private let spacing: CGFloat = 6
+
+    private func row(_ badges: [HistoryRowModel.SinkBadge]) -> HistoryRowModel {
+        HistoryRowModel(
+            id: UUID(),
+            outcome: .success,
+            shortHash: "a4f03a9c",
+            dateLabel: "2026-11-26",
+            relativeTime: "Today · 21:00",
+            summary: "exported 1 day",
+            sinkBadges: badges
+        )
+    }
+
+    private func height<V: View>(_ view: V, width: CGFloat) -> CGFloat {
+        UIHostingController(rootView: view)
+            .sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+    }
+
+    func test_longWebhookBadge_movesToItsOwnLineInsteadOfWrapping() {
+        let base = [
+            HistoryRowModel.SinkBadge(label: "github", ok: true, kind: "github"),
+            HistoryRowModel.SinkBadge(label: "telegram", ok: true, kind: "telegram")
+        ]
+        let webhook = HistoryRowModel.SinkBadge(label: webhookLabel, ok: true, kind: "webhook")
+        let narrow: CGFloat = 370
+        let twoBadges = height(HistoryRowView(model: row(base)), width: narrow)
+        let pill = height(PCPill(text: webhookLabel, monospaced: true), width: 2000)
+        let threeBadges = height(HistoryRowView(model: row(base + [webhook])), width: narrow)
+        XCTAssertEqual(threeBadges, twoBadges + pill + spacing, accuracy: 1)
+        let wide = height(HistoryRowView(model: row(base + [webhook])), width: 2000)
+        XCTAssertEqual(wide, twoBadges, accuracy: 1)
+    }
+}
 
 @MainActor
 final class HistoryRowViewTests: XCTestCase {
