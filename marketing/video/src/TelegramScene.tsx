@@ -238,10 +238,11 @@ const REPLY: { text: string; mono?: boolean }[] = [
 const Reply: React.FC<{ frame: number }> = ({ frame }) => {
   let budget = Math.max(0, Math.floor((frame - MARKS.replyIn) / 2.5)) + 1;
   return (
-    <div style={{ fontFamily: font.ui, fontSize: 46, lineHeight: 1.36, color: color.text, width: 880, minHeight: 320 }}>
+    <div style={{ fontFamily: font.ui, fontSize: 46, lineHeight: 1.36, color: color.text, width: 880 }}>
+      <div style={{ minHeight: 250 }}>
       {REPLY.map((part, i) => {
         const words = part.text.split(/(?<= )/);
-        const shown = part.mono ? (budget > 0 ? part.text : "") : words.slice(0, budget).join("");
+        const shown = part.mono ? (budget > 0 ? part.text : "") : words.slice(0, Math.max(0, budget)).join("");
         budget -= part.mono ? 1 : words.length;
         return (
           <span key={i} style={part.mono ? { fontFamily: font.mono, color: color.accent } : undefined}>
@@ -249,6 +250,7 @@ const Reply: React.FC<{ frame: number }> = ({ frame }) => {
           </span>
         );
       })}
+      </div>
       <div style={{ textAlign: "right", color: tg.dim, fontSize: 30, marginTop: 10, fontFamily: font.mono }}>21:01</div>
     </div>
   );
