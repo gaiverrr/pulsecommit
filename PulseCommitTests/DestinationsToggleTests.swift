@@ -72,14 +72,31 @@ final class DestinationsToggleTests: XCTestCase {
         XCTAssertFalse(container.preferences.githubExportEnabled)
     }
 
-    func test_toggleState_unconfiguredShowsOffEvenWhenPreferenceIsOn() {
-        XCTAssertFalse(DestinationsView.toggleIsOn(configured: false, enabled: true))
-        XCTAssertFalse(DestinationsView.toggleIsOn(configured: false, enabled: false))
+    func test_toggleBinding_unconfiguredReadsOffEvenWhenPreferenceIsOn() {
+        var stored = true
+        let enabled = Binding<Bool>(get: { stored }, set: { stored = $0 })
+        let binding = DestinationsView.toggleBinding(configured: false, enabled: enabled, onToggle: { _ in })
+        XCTAssertFalse(binding.wrappedValue)
+        XCTAssertTrue(stored)
     }
 
-    func test_toggleState_configuredFollowsPreference() {
-        XCTAssertTrue(DestinationsView.toggleIsOn(configured: true, enabled: true))
-        XCTAssertFalse(DestinationsView.toggleIsOn(configured: true, enabled: false))
+    func test_toggleBinding_configuredReadsPreference() {
+        var stored = true
+        let enabled = Binding<Bool>(get: { stored }, set: { stored = $0 })
+        let binding = DestinationsView.toggleBinding(configured: true, enabled: enabled, onToggle: { _ in })
+        XCTAssertTrue(binding.wrappedValue)
+        stored = false
+        XCTAssertFalse(binding.wrappedValue)
+    }
+
+    func test_toggleBinding_setterWritesThroughAndNotifies() {
+        var stored = true
+        var notified: [Bool] = []
+        let enabled = Binding<Bool>(get: { stored }, set: { stored = $0 })
+        let binding = DestinationsView.toggleBinding(configured: true, enabled: enabled, onToggle: { notified.append($0) })
+        binding.wrappedValue = false
+        XCTAssertFalse(stored)
+        XCTAssertEqual(notified, [false])
     }
 
     func test_unconfiguredRow_leavesStoredPreferenceUntouched() async throws {

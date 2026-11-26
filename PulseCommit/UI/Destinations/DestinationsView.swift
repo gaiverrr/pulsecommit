@@ -127,8 +127,18 @@ struct DestinationsView: View {
         return webhookReady ? Theme.success : Theme.warn
     }
 
-    static func toggleIsOn(configured: Bool, enabled: Bool) -> Bool {
-        configured && enabled
+    static func toggleBinding(
+        configured: Bool,
+        enabled: Binding<Bool>,
+        onToggle: @escaping (Bool) -> Void
+    ) -> Binding<Bool> {
+        Binding(
+            get: { configured && enabled.wrappedValue },
+            set: { newValue in
+                enabled.wrappedValue = newValue
+                onToggle(newValue)
+            }
+        )
     }
 
     private enum RowIcon {
@@ -191,12 +201,10 @@ struct DestinationsView: View {
                     .font(.pcLabel)
                     .tracking(1.2)
                     .foregroundStyle(statusColor)
-                PCToggle(accessibilityLabel: "\(title) export", isOn: Binding(
-                    get: { Self.toggleIsOn(configured: configured, enabled: enabled.wrappedValue) },
-                    set: { newValue in
-                        enabled.wrappedValue = newValue
-                        onToggle(newValue)
-                    }
+                PCToggle(accessibilityLabel: "\(title) export", isOn: Self.toggleBinding(
+                    configured: configured,
+                    enabled: enabled,
+                    onToggle: onToggle
                 ))
                 .disabled(!configured)
                 .opacity(configured ? 1 : 0.5)
