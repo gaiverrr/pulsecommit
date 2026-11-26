@@ -102,6 +102,13 @@ extension AppContainer {
         await configuredWebhookTarget() != nil
     }
 
+    @discardableResult
+    func disableWebhookIfInvalidChange(draft: WebhookSettingsDraft, storedEndpoint: String?) -> Bool {
+        guard draft.isInvalidChange(from: storedEndpoint) else { return false }
+        preferences.webhookExportEnabled = false
+        return true
+    }
+
     func applyWebhookDraftOnLeave(_ draft: WebhookSettingsDraft) async {
         if draft.endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             await clearWebhookSettings()

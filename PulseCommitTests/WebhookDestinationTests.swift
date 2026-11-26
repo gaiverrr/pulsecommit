@@ -366,6 +366,26 @@ final class WebhookDestinationTests: XCTestCase {
         XCTAssertFalse(draft("http://other.example.com/x").isInvalidChange(from: nil))
     }
 
+    func test_invalidChangedDraftDisablesWebhookSynchronously() {
+        let container = makeContainer()
+        container.preferences.webhookExportEnabled = true
+        let stored = "https://hooks.example.com/x"
+
+        let kept = container.disableWebhookIfInvalidChange(
+            draft: WebhookSettingsDraft(endpoint: stored, token: token, tokenHeader: "Bad Header"),
+            storedEndpoint: stored
+        )
+        XCTAssertFalse(kept)
+        XCTAssertTrue(container.preferences.webhookExportEnabled)
+
+        let disabled = container.disableWebhookIfInvalidChange(
+            draft: WebhookSettingsDraft(endpoint: "http://other.example.com/x", token: token, tokenHeader: "Authorization"),
+            storedEndpoint: stored
+        )
+        XCTAssertTrue(disabled)
+        XCTAssertFalse(container.preferences.webhookExportEnabled)
+    }
+
     func test_leavingWithValidOrEmptyDraftSavesOrClears() async throws {
         let container = makeContainer()
         await container.applyWebhookDraftOnLeave(WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization"))

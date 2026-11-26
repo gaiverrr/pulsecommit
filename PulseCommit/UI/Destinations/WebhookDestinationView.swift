@@ -452,9 +452,7 @@ struct WebhookDestinationView: View {
     private func persistIfValid() {
         guard loaded else { return }
         let submitted = draft
-        if submitted.isInvalidChange(from: storedEndpoint) {
-            container.preferences.webhookExportEnabled = false
-        }
+        container.disableWebhookIfInvalidChange(draft: submitted, storedEndpoint: storedEndpoint)
         Task { @MainActor in await container.applyWebhookDraftOnLeave(submitted) }
     }
 
