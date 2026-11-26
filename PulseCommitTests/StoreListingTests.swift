@@ -102,7 +102,7 @@ final class StoreListingTests: XCTestCase {
         }
         let rest = body[range.upperBound...]
         let keywords = String(rest[..<rest.range(of: "\n```")!.lowerBound]).lowercased()
-        for brand in ["openclaw", "hermes", "claude", "chatgpt", "gemini"] {
+        for brand in ["openclaw", "hermes", "claude", "chatgpt", "gemini", "openai", "n8n"] {
             XCTAssertFalse(keywords.contains(brand), "Keywords must not contain trademark: \(brand)")
         }
     }
@@ -122,7 +122,7 @@ final class StoreListingTests: XCTestCase {
     func test_description_containsHeroLineAndAntiPositioningAndFreePrice() throws {
         let body = try read("docs/store/listing.md")
         XCTAssertTrue(
-            body.contains("Daily Apple Health exports for your own AI agent: OpenClaw, Hermes, Claude or any agent that reads JSON."),
+            body.contains("Daily Apple Health exports for your own AI agent, or any script or service that reads JSON."),
             "Description must contain the hero line verbatim"
         )
         XCTAssertTrue(
