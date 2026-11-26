@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Composition, Still, continueRender, delayRender } from "remotion";
+import { AvatarSheet } from "./Avatars";
 import { HeroLoop, type HeroProps } from "./HeroLoop";
 import { STORE_SIZE } from "./store";
 import { StoreShot, type StoreShotProps } from "./StoreShot";
@@ -56,5 +57,6 @@ export const Root: React.FC = () => (
       height={STORE_SIZE.height}
       defaultProps={storeDefaults}
     />
+    <Still id="Avatars" component={AvatarSheet} width={260} height={72} />
   </>
 );

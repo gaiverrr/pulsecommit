@@ -1,9 +1,12 @@
+import { HealthAgentAvatar, HealthLogAvatar, PulseBotAvatar } from "./Avatars";
 import { SCREEN } from "./layout";
 import { color, font } from "./theme";
 import { MARKS, PERIODS, REPLY_WORDS, clamp01, countUp, easeOut, formatInt, replyWordsShown } from "./timeline";
 
 const tg = { bg: "#17212b", bubble: "#182533", link: "#6ab2f2", dim: "#708499" };
 const AGENT = tg.link;
+
+const agentBlinks = (frame: number) => frame - MARKS.typingFrom >= 12 && frame - MARKS.typingFrom < 14;
 
 const appear = (frame: number, at: number, length = 16) => easeOut(clamp01((frame - at) / length));
 
@@ -59,45 +62,8 @@ const Header: React.FC<{ typing: boolean }> = ({ typing }) => (
       </div>
     </div>
     <div style={{ width: 260, display: "flex", justifyContent: "flex-end" }}>
-      <div
-        style={{
-          width: 120,
-          height: 120,
-          borderRadius: 60,
-          background: color.accent,
-          color: "#000",
-          fontFamily: font.mono,
-          fontWeight: 600,
-          fontSize: 46,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        HL
-      </div>
+      <HealthLogAvatar size={120} />
     </div>
-  </div>
-);
-
-const Avatar: React.FC<{ label: string; bg: string }> = ({ label, bg }) => (
-  <div
-    style={{
-      width: 96,
-      height: 96,
-      borderRadius: 48,
-      background: bg,
-      color: "#000",
-      fontFamily: font.mono,
-      fontWeight: 600,
-      fontSize: 38,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
-    }}
-  >
-    {label}
   </div>
 );
 
@@ -270,18 +236,23 @@ export const TelegramScene: React.FC<{ frame: number; date: string }> = ({ frame
         <Bubble
           sender="pulse bot"
           senderColor={color.accent}
-          avatar={<Avatar label="PC" bg={color.accent} />}
+          avatar={<PulseBotAvatar size={96} />}
           progress={appear(frame, MARKS.summaryIn)}
         >
           <Summary frame={frame} date={date} />
         </Bubble>
         {typing && (
-          <Bubble sender="Health agent" senderColor={AGENT} avatar={<Avatar label="AI" bg={AGENT} />} progress={typingIn}>
+          <Bubble
+            sender="Health agent"
+            senderColor={AGENT}
+            avatar={<HealthAgentAvatar size={96} blink={agentBlinks(frame)} />}
+            progress={typingIn}
+          >
             <TypingDots frame={frame} />
           </Bubble>
         )}
         {frame >= MARKS.replyIn && (
-          <Bubble sender="Health agent" senderColor={AGENT} avatar={<Avatar label="AI" bg={AGENT} />} progress={replyIn}>
+          <Bubble sender="Health agent" senderColor={AGENT} avatar={<HealthAgentAvatar size={96} />} progress={replyIn}>
             <Reply frame={frame} />
           </Bubble>
         )}
