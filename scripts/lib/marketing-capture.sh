@@ -53,8 +53,10 @@ copied = 0
 for test in json.load(open(os.path.join(src, "manifest.json"))):
     for item in test.get("attachments", []):
         name = item.get("suggestedHumanReadableName", "")
+        exported = item["exportedFileName"]
         stem = name.split("_")[0] if "_" in name else os.path.splitext(name)[0]
-        shutil.copy(os.path.join(src, item["exportedFileName"]), os.path.join(dst, stem + ".png"))
+        ext = os.path.splitext(exported)[1] or ".png"
+        shutil.copy(os.path.join(src, exported), os.path.join(dst, stem + ext))
         copied += 1
 if copied == 0:
     sys.exit("no attachments exported")

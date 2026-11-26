@@ -25,12 +25,14 @@ if [ "$SKIP_CAPTURE" -eq 0 ]; then
   marketing_capture "$ROOT" "$SIM_NAME" "$SIM_OS" PulseCommitMarketingUITests/HeroCaptureUITests "$SCREENS"
 fi
 
-for screen in 01-home-idle 02-home-running-a 03-home-running-b 04-home-running-c 05-home-done 06-history; do
-  [ -f "$SCREENS/$screen.png" ] || { echo "missing $SCREENS/$screen.png - run without --skip-capture" >&2; exit 1; }
+for screen in 01-home-idle.png 02-home-running-a.png 03-home-running-b.png 04-home-running-c.png 05-home-done.png 06-history.png frames.json; do
+  [ -f "$SCREENS/$screen" ] || { echo "missing $SCREENS/$screen - run without --skip-capture" >&2; exit 1; }
 done
 
 cd "$VIDEO"
 [ -d node_modules ] || npm ci
+node scripts/measure.mjs
+npm test
 npm run render
 mkdir -p preview
 cp out/hero-strip.jpg out/hero-wide-strip.jpg preview/
