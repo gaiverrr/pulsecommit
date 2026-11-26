@@ -371,10 +371,12 @@ final class WebhookConfigurationTests: XCTestCase {
     }
 
     func test_rejectsLocalNetworkHosts() {
-        for host in ["localhost", "printer.local", "10.0.0.5", "192.168.1.20", "172.20.0.1", "127.0.0.1", "169.254.1.1", "[::1]", "[fd12::1]"] {
+        for host in ["localhost", "printer.local", "10.0.0.5", "192.168.1.20", "172.20.0.1", "127.0.0.1", "169.254.1.1", "[::1]", "[fd12::1]",
+                     "[::ffff:192.168.1.5]", "[::ffff:127.0.0.1]", "[::ffff:c0a8:105]", "[fe90::1]", "[febf::1]", "[fe80::1]", "[fc00::1]", "[::]", "0.0.0.0", "0.1.2.3",
+                     "127.1", "2130706433", "0x7f000001", "010.0.0.1", "1.2.3", "foo.localhost", "[0:0:0:0:0:0:0:1]"] {
             XCTAssertThrowsError(try WebhookConfiguration(endpoint: URL(string: "https://\(host)/hook")!, token: nil), host)
         }
-        for host in ["agent.tail1a2b.ts.net", "172.32.0.1", "hooks.example.com", "100.100.1.1"] {
+        for host in ["agent.tail1a2b.ts.net", "172.32.0.1", "hooks.example.com", "100.100.1.1", "100.64.0.1", "172.15.0.1", "8.8.8.8", "[2001:db8::1]", "[::ffff:8.8.8.8]", "[fec0::1]", "1.2.3.4.example.com"] {
             XCTAssertNoThrow(try WebhookConfiguration(endpoint: URL(string: "https://\(host)/hook")!, token: nil), host)
         }
     }
