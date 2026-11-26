@@ -351,7 +351,8 @@ final class WebhookSinkTests: XCTestCase {
         XCTAssertEqual(WebhookSinkError.transportFailure(code: -1009).localizedDescription, "No internet connection (-1009)")
         XCTAssertEqual(WebhookSinkError.transportFailure(code: -1001).localizedDescription, "The endpoint did not respond in 30 seconds (-1001)")
         XCTAssertEqual(WebhookSinkError.transportFailure(code: -1202).localizedDescription, "The endpoint's HTTPS certificate is not trusted (-1202)")
-        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1200).localizedDescription, "The endpoint's HTTPS certificate is not trusted (-1200)")
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1200).localizedDescription, "The HTTPS connection to the endpoint failed (-1200)")
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1206).localizedDescription, "The endpoint's HTTPS certificate is not trusted (-1206)")
         XCTAssertEqual(WebhookSinkError.transportFailure(code: -1004).localizedDescription, "Network error (-1004)")
     }
 

@@ -354,6 +354,18 @@ final class WebhookDestinationTests: XCTestCase {
         XCTAssertEqual(configured, [])
     }
 
+    func test_invalidChangedDraftIsDetectedWithoutKeychain() {
+        let stored = "https://hooks.example.com/x"
+        func draft(_ endpoint: String, header: String = "Authorization") -> WebhookSettingsDraft {
+            WebhookSettingsDraft(endpoint: endpoint, token: token, tokenHeader: header)
+        }
+        XCTAssertTrue(draft("http://other.example.com/x").isInvalidChange(from: stored))
+        XCTAssertFalse(draft(stored, header: "Bad Header").isInvalidChange(from: stored))
+        XCTAssertFalse(draft("https://other.example.com/x").isInvalidChange(from: stored))
+        XCTAssertFalse(draft(" ").isInvalidChange(from: stored))
+        XCTAssertFalse(draft("http://other.example.com/x").isInvalidChange(from: nil))
+    }
+
     func test_leavingWithValidOrEmptyDraftSavesOrClears() async throws {
         let container = makeContainer()
         await container.applyWebhookDraftOnLeave(WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization"))
