@@ -69,8 +69,8 @@ struct HomeContainerView: View {
                         destinationsPath = [.github]
                         selectedTab = .destinations
                     },
-                    onOpenLatestEntry: {
-                        latestEntry = (try? container.history.recentEntries(limit: 1))?.first
+                    onOpenEntry: { id in
+                        latestEntry = try? container.history.entry(id: id)
                     },
                     onSelectPeriod: { period in
                         viewModel.currentPeriod = period
@@ -93,7 +93,16 @@ struct HomeContainerView: View {
                     .presentationDetents([.large])
                 }
                 .sheet(item: $latestEntry) { entry in
-                    NavigationStack { HistoryDetailView(entry: entry) }
+                    NavigationStack {
+                        HistoryDetailView(entry: entry)
+                            .navigationTitle("Run details")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") { latestEntry = nil }
+                                }
+                            }
+                    }
                 }
                 .onChange(of: viewModel.phase) { _, newPhase in
                     refreshState()

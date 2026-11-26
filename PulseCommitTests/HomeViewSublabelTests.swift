@@ -39,6 +39,30 @@ final class HomeViewSublabelTests: XCTestCase {
         )
     }
 
+    func test_subLabelAction_errorWithEntryOpensThatEntry() {
+        let id = UUID()
+        XCTAssertEqual(HomeView.subLabelAction(for: .error(reason: "boom", entryId: id)), .openEntry(id))
+    }
+
+    func test_subLabelAction_errorWithoutEntryHasNoAction() {
+        XCTAssertEqual(HomeView.subLabelAction(for: .error(reason: "boom", entryId: nil)), SubLabelAction.none)
+    }
+
+    func test_subLabelAction_idleAndDoneExport() {
+        XCTAssertEqual(HomeView.subLabelAction(for: .idle), .export)
+        XCTAssertEqual(HomeView.subLabelAction(for: .done(at: Date())), .export)
+    }
+
+    func test_subLabelAction_runningHasNoAction() {
+        XCTAssertEqual(HomeView.subLabelAction(for: .running), SubLabelAction.none)
+    }
+
+    func test_accessibilityHint_inErrorDoesNotRepeatReason() {
+        let vm = makeViewModelInPhase(.error(reason: "boom", entryId: UUID()))
+        let label = HomeView.computeButtonSubLabel(for: vm, periodSubLabel: "ignored")
+        XCTAssertEqual(HomeView.accessibilityHintText(for: vm, buttonSubLabel: label), "")
+    }
+
     func test_accessibilityHint_isStaticDuringRunning() {
         let vm = makeViewModelInPhase(.running)
         vm.stagePrefix = "> totals · "

@@ -152,6 +152,17 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertTrue(message.contains("disable affected optional categories"))
     }
 
+    func test_runExport_failureKeepsRecordedEntryIdInErrorPhase() async {
+        let id = UUID()
+        let viewModel = HomeViewModel(
+            runRequest: { _, _ in Orchestrator.RunResult(status: .failed, entryId: id) },
+            enabledCategoryIds: { ["steps"] },
+            enabledSinkIds: { ["github"] }
+        )
+        await viewModel.runExport()
+        XCTAssertEqual(viewModel.phase, .error(reason: "export failed", entryId: id))
+    }
+
     func test_runExport_legacyPaywalledStatusIsTreatedAsFailure() async {
         let viewModel = HomeViewModel(
             runRequest: { _, _ in Orchestrator.RunResult(status: .paywalled) },

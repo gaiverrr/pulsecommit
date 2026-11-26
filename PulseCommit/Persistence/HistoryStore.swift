@@ -82,6 +82,16 @@ final class HistoryStore {
         return try context.fetch(descriptor).map(HistoryEntrySnapshot.init(entry:))
     }
 
+    func entry(id: UUID) throws -> HistoryEntrySnapshot? {
+        guard let container else { return nil }
+        let context = ModelContext(container)
+        var descriptor = FetchDescriptor<HistoryEntry>(
+            predicate: #Predicate { $0.id == id }
+        )
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first.map(HistoryEntrySnapshot.init(entry:))
+    }
+
     func latestGitHubCommitEntry() throws -> HistoryEntrySnapshot? {
         guard let container else { return nil }
         let context = ModelContext(container)

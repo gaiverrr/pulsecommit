@@ -14,6 +14,16 @@ enum MarketingDemo {
     static let webhookToken = "demo-webhook-token-7f3c"
     static let webhookSeededDays = 3
 
+    static let failingGitHubArgument = "-marketingDemoFailGitHub"
+
+    struct DemoSinkFailure: LocalizedError {
+        var errorDescription: String? { "demo github failure" }
+    }
+
+    static func failsGitHub(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+        arguments.contains(failingGitHubArgument)
+    }
+
     static func isRequested(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
         arguments.contains(launchArgument)
     }
@@ -73,7 +83,7 @@ enum MarketingDemo {
                         appVersion: "1.0.2"
                     ),
                     sinks: [
-                        DemoSink(id: "github", delay: stepDelay * 3, reference: sha(seed: 0)),
+                        DemoSink(id: "github", delay: stepDelay * 3, reference: sha(seed: 0), fails: failsGitHub()),
                         DemoSink(id: "telegram", delay: stepDelay * 2, reference: "4182"),
                         DemoSink(id: WebhookDestinationSink.sinkID, delay: stepDelay, reference: webhookReference)
                     ],
@@ -204,9 +214,11 @@ private struct DemoSink: Sink {
     let id: String
     let delay: Duration
     let reference: String
+    var fails = false
 
     func deliver(snapshot: DailySnapshot, files: [FileEntry]) async throws -> SinkResult {
         try await Task.sleep(for: delay)
+        if fails { throw MarketingDemo.DemoSinkFailure() }
         return .success(reference: reference, url: nil)
     }
 }
