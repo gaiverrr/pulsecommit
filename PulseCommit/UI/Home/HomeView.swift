@@ -283,12 +283,9 @@ struct HomeView: View {
         Task { await viewModel.runExport(sinkOverride: nil, modeOverride: mode) }
     }
 
-    // Locked minimum height for the big Export button. Its inner content
-    // changes per phase — running adds a 3pt progress bar, done/error swap
-    // the sub-label — and without a floor the RECENT COMMITS card below
-    // shifts a few points on every phase transition. 232pt now fits the
-    // tallest state (running, with the embedded chip row + dashed divider
-    // added below the top zone) at iPhone widths.
+    // Every phase renders the same slots (two-line sub-label, stage line,
+    // progress bar) and only toggles their opacity, so the natural height is
+    // phase-independent; this floor only guards against a shorter future layout.
     static let bigButtonMinHeight: CGFloat = 232
 
     // ─────────────────────────────────────────────────────────────────────
@@ -301,10 +298,20 @@ struct HomeView: View {
     //     dispatch an export.
     // Both zones share the lime background, rounded shape, and accent glow.
     // ─────────────────────────────────────────────────────────────────────
-    private var bigButton: some View {
+    static let bigButtonCoordinateSpace = "home.bigButton"
+
+    var bigButton: some View {
         VStack(alignment: .leading, spacing: 0) {
             topZone
             dashedDivider
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: BigButtonDividerMinYKey.self,
+                            value: geo.frame(in: .named(Self.bigButtonCoordinateSpace)).minY
+                        )
+                    }
+                )
             bigButtonChipRow
         }
         .padding(20)
@@ -323,6 +330,7 @@ struct HomeView: View {
         // big button. Drop shadows on cards are forbidden by the design spec;
         // only the home Export button gets a glow.
         .shadow(color: Theme.accentSoft, radius: 24, x: 0, y: 0)
+        .coordinateSpace(.named(Self.bigButtonCoordinateSpace))
         .animation(.easeInOut(duration: 0.25), value: viewModel.phase)
     }
 
@@ -369,52 +377,31 @@ struct HomeView: View {
                     .font(.pcCaptionMono)
                     .foregroundStyle(Color.black.opacity(0.55))
                 Spacer()
-                if case .running = viewModel.phase {
-                    PCStatusDot(color: Color.black, pulsing: true)
-                } else {
+                ZStack(alignment: .topTrailing) {
                     Image(systemName: "arrow.up.circle")
                         .font(.system(size: 30, weight: .semibold))
                         .foregroundStyle(Color.black)
+                        .opacity(isRunning ? 0 : 1)
+                    PCStatusDot(color: Color.black, pulsing: isRunning)
+                        .opacity(isRunning ? 1 : 0)
+                        .accessibilityHidden(!isRunning)
                 }
             }
             Text(buttonTitle)
                 .font(.pcBigButton)
                 .foregroundStyle(Color.black)
-            if let sub = buttonSubLabel {
-                Text(sub)
-                    .font(.pcMonoDetail)
-                    .foregroundStyle(Color.black.opacity(0.65))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if case .running = viewModel.phase {
-                // Live progress line, split into three parts so only the category name
-                // fades on change while the prefix and counter update in place.
-                HStack(spacing: 0) {
-                    Text(viewModel.stagePrefix)
-                        .font(.pcCaptionMono)
-                        .foregroundStyle(Color.black.opacity(0.55))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    if let label = viewModel.stageLabel {
-                        Text(label)
-                            .font(.pcCaptionMono)
-                            .foregroundStyle(Color.black.opacity(0.55))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .transition(.opacity)
-                            .id(label)
-                    }
-                    if let counter = viewModel.stageCounter {
-                        Text(" \(counter)")
-                            .font(.pcCaptionMono)
-                            .foregroundStyle(Color.black.opacity(0.55))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(Text(viewModel.currentStage))
-                .accessibilityAddTraits(.updatesFrequently)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(buttonSubLabel ?? " ")
+                .font(.pcMonoDetail)
+                .foregroundStyle(Color.black.opacity(0.65))
+                .lineLimit(2, reservesSpace: true)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .opacity(buttonSubLabel == nil ? 0 : 1)
+                .accessibilityHidden(buttonSubLabel == nil)
+            VStack(alignment: .leading, spacing: 14) {
+                stageLine
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule().fill(Color.black.opacity(0.15)).frame(height: 3)
@@ -422,12 +409,52 @@ struct HomeView: View {
                     }
                 }
                 .frame(height: 3)
+                .accessibilityHidden(true)
             }
+            .opacity(isRunning ? 1 : 0)
+            .accessibilityHidden(!isRunning)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(.bottom, 14)
         .animation(.easeInOut(duration: 0.18), value: viewModel.stageLabel)
         .contentShape(Rectangle())
+    }
+
+    private var stageLine: some View {
+        Text(" ")
+            .font(.pcCaptionMono)
+            .hidden()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .leading) { stageText }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(viewModel.currentStage))
+        .accessibilityAddTraits(.updatesFrequently)
+    }
+
+    private var stageText: some View {
+        HStack(spacing: 0) {
+            Text(viewModel.stagePrefix)
+                .font(.pcCaptionMono)
+                .foregroundStyle(Color.black.opacity(0.55))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if let label = viewModel.stageLabel {
+                Text(label)
+                    .font(.pcCaptionMono)
+                    .foregroundStyle(Color.black.opacity(0.55))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .transition(.opacity)
+                    .id(label)
+            }
+            if let counter = viewModel.stageCounter {
+                Text(" \(counter)")
+                    .font(.pcCaptionMono)
+                    .foregroundStyle(Color.black.opacity(0.55))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
     }
 
     // Dashed hairline implemented with StrokeStyle to honour ui-ux-pro-max's
@@ -835,5 +862,13 @@ struct HeroPressStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
+struct BigButtonDividerMinYKey: PreferenceKey {
+    static let defaultValue: CGFloat = -1
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
