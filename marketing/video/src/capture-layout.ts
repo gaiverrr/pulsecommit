@@ -34,17 +34,17 @@ export const CAPTURE: CaptureLayout = {
   },
   "commitsArea": {
     "x": 64,
-    "y": 1477,
+    "y": 1467,
     "w": 1078,
-    "h": 717,
+    "h": 737,
     "bg": "rgb(20,20,20)"
   },
   "commitRows": [
     {
       "x": 64,
-      "y": 1477,
+      "y": 1467,
       "w": 1078,
-      "h": 196
+      "h": 206
     },
     {
       "x": 64,
@@ -62,7 +62,7 @@ export const CAPTURE: CaptureLayout = {
       "x": 64,
       "y": 1997,
       "w": 1078,
-      "h": 197
+      "h": 207
     }
   ],
   "historyTab": {

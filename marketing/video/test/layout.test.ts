@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { CAPTURE } from "../src/capture-layout.ts";
 import { HOME, SCREEN } from "../src/layout.ts";
-import { type RGB, type Raster, type Rect, findCard, findCommits, findProgressBar, measureCapture } from "../src/measure.ts";
+import { type RGB, type Raster, type Rect, findCard, findCommits, findProgressBar, findWidestProgressBar } from "../src/measure.ts";
 
 const screens = new URL("../public/screens/", import.meta.url).pathname;
 
@@ -37,10 +37,26 @@ test("detector finds the lime card and the progress bar on a synthetic capture",
   img.fill({ x: 40, y: 260, w: 128, h: 3 }, BLACK);
   const card = findCard(img);
   assert.deepEqual(card, { x: 20, y: 100, w: 360, h: 240 });
-  const bar = findProgressBar(img, card);
+  const { bar, fill } = findProgressBar(img, card);
+  assert.equal(fill, 128);
   assert.deepEqual({ x: bar.x, y: bar.y, w: bar.w, h: bar.h }, { x: 40, y: 260, w: 320, h: 3 });
   assert.equal(bar.track, "rgb(139,204,49)");
   assert.equal(bar.bg, "rgb(164,240,58)");
+});
+
+test("bar is measured on the running capture with the widest fill", () => {
+  const shot = (fill: number) => {
+    const img = raster(400, 600, BG);
+    img.fill({ x: 20, y: 100, w: 360, h: 240 }, LIME);
+    if (fill > 0) {
+      img.fill({ x: 40, y: 260, w: 320, h: 3 }, TRACK);
+      img.fill({ x: 40, y: 260, w: fill, h: 3 }, BLACK);
+    }
+    return img;
+  };
+  const bar = findWidestProgressBar([shot(0), shot(80), shot(200)]);
+  assert.deepEqual({ x: bar.x, y: bar.y, w: bar.w, h: bar.h }, { x: 40, y: 260, w: 320, h: 3 });
+  assert.throws(() => findWidestProgressBar([shot(0)]));
 });
 
 test("detector splits the recent commits card at its dividers", () => {
@@ -49,8 +65,9 @@ test("detector splits the recent commits card at its dividers", () => {
   img.fill({ x: 22, y: 200, w: 356, h: 300 }, [20, 20, 20]);
   img.fill({ x: 60, y: 300, w: 300, h: 1 }, [37, 37, 37]);
   img.fill({ x: 60, y: 400, w: 300, h: 1 }, [37, 37, 37]);
-  img.fill({ x: 80, y: 260, w: 60, h: 10 }, [250, 250, 250]);
-  const { area, rows } = findCommits(img, findCard(img));
+  const anchors = [240, 340, 440].map((y) => ({ x: 80, y, w: 60, h: 10 }));
+  for (const anchor of anchors) img.fill(anchor, [250, 250, 250]);
+  const { area, rows } = findCommits(img, anchors);
   assert.deepEqual({ x: area.x, y: area.y, w: area.w, h: area.h }, { x: 22, y: 200, w: 356, h: 300 });
   assert.deepEqual(rows.map((r) => [r.y, r.y + r.h]), [[200, 300], [300, 400], [400, 500]]);
 });
@@ -94,14 +111,6 @@ test("commit rows tile the recent commits card below the button", () => {
 });
 
 test("committed layout matches the current captures", { skip: !existsSync(join(screens, "frames.json")) }, async () => {
-  const { decode } = await import("../scripts/decode.mjs");
-  const measured = measureCapture(
-    {
-      idle: decode(join(screens, "01-home-idle.png")),
-      running: decode(join(screens, "03-home-running-b.png")),
-      done: decode(join(screens, "05-home-done.png")),
-    },
-    JSON.parse(readFileSync(join(screens, "frames.json"), "utf8")),
-  );
-  assert.deepEqual(measured, CAPTURE);
+  const { measureScreens } = await import("../scripts/decode.mjs");
+  assert.deepEqual(measureScreens(screens), CAPTURE);
 });

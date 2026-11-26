@@ -59,7 +59,7 @@ final class HeroCaptureUITests: XCTestCase {
         let queries: [String: XCUIElementQuery] = [
             "topZone": app.buttons.matching(identifier: "home.bigButton.topZone"),
             "chipRow": app.descendants(matching: .any).matching(identifier: "home.bigButton.chipRow"),
-            "commitRows": app.descendants(matching: .any).matching(identifier: "home.recentCommits.row"),
+            "commitRows": app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", "^[0-9a-f]{7}$")),
             "historyTab": app.tabBars.buttons.matching(identifier: "History"),
         ]
         var result: [String: [[Double]]] = [:]

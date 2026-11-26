@@ -135,7 +135,7 @@ const runningShot = (frame: number): { from: ShotName; to: ShotName; mix: number
 
 const HomeFlow: React.FC<{ frame: number }> = ({ frame }) => {
   if (frame < 250) {
-    const idle = 1 - fade(frame, 72, 6);
+    const idle = frame < MARKS.runningShots[0] ? 1 : 0;
     const running = runningShot(frame);
     return (
       <>

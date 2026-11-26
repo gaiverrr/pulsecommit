@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "Hero loop for pulsecommit.app, rendered with Remotion from simulator screenshots.",
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "studio": "remotion studio",
     "typecheck": "tsc --noEmit",
