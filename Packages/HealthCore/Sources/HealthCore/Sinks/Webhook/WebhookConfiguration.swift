@@ -94,18 +94,35 @@ public struct WebhookConfiguration: Equatable, Sendable {
     static func isLocal(host: String) -> Bool {
         let name = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]."))
         if name == "localhost" || name.hasSuffix(".localhost") || name.hasSuffix(".local") { return true }
-        if name.contains(":") {
-            return name == "::1" || name.hasPrefix("fe80") || name.hasPrefix("fc") || name.hasPrefix("fd")
+
+        var v6 = in6_addr()
+        if inet_pton(AF_INET6, name, &v6) == 1 {
+            return isLocal(ipv6: withUnsafeBytes(of: &v6) { Array($0) })
         }
-        let parts = name.split(separator: ".").compactMap { UInt8($0) }
-        guard parts.count == 4, name.split(separator: ".").count == 4 else { return false }
-        switch (parts[0], parts[1]) {
-        case (10, _), (127, _), (0, _): return true
-        case (169, 254): return true
-        case (192, 168): return true
-        case (172, 16...31): return true
+        var v4 = in_addr()
+        if inet_pton(AF_INET, name, &v4) == 1 {
+            return isLocal(ipv4: withUnsafeBytes(of: &v4) { Array($0) })
+        }
+        let numericOnly = name.unicodeScalars.allSatisfy { CharacterSet(charactersIn: "0123456789.").contains($0) }
+        let hexForm = name.hasPrefix("0x") && name.unicodeScalars.allSatisfy { CharacterSet(charactersIn: "0123456789abcdefx.").contains($0) }
+        return numericOnly || hexForm
+    }
+
+    private static func isLocal(ipv4 b: [UInt8]) -> Bool {
+        switch (b[0], b[1]) {
+        case (0, _), (10, _), (127, _), (169, 254), (192, 168), (172, 16...31): return true
         default: return false
         }
+    }
+
+    private static func isLocal(ipv6 b: [UInt8]) -> Bool {
+        if b.dropLast().allSatisfy({ $0 == 0 }) && (b[15] == 0 || b[15] == 1) { return true }
+        if b[0..<10].allSatisfy({ $0 == 0 }) && b[10] == 0xff && b[11] == 0xff {
+            return isLocal(ipv4: Array(b[12..<16]))
+        }
+        if b[0] == 0xfe && (b[1] & 0xc0) == 0x80 { return true }
+        if (b[0] & 0xfe) == 0xfc { return true }
+        return false
     }
 
     public static func generateToken() -> String {
