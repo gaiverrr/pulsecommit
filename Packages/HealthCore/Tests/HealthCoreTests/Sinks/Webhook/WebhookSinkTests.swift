@@ -347,6 +347,14 @@ final class WebhookSinkTests: XCTestCase {
         XCTAssertNil(next)
     }
 
+    func test_transportFailuresUsePlainWording() {
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1009).localizedDescription, "No internet connection (-1009)")
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1001).localizedDescription, "The endpoint did not respond in 30 seconds (-1001)")
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1202).localizedDescription, "The endpoint's HTTPS certificate is not trusted (-1202)")
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1200).localizedDescription, "The endpoint's HTTPS certificate is not trusted (-1200)")
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1004).localizedDescription, "Network error (-1004)")
+    }
+
     func test_errorDescriptionsNeverContainSecrets() {
         let errors: [WebhookSinkError] = [.httpStatus(401), .redirectRefused(301), .transportFailure(code: -1001), .invalidResponse, .missingSummary, .invalidSummary]
         for error in errors {

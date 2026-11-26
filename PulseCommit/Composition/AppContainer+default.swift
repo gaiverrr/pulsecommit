@@ -187,7 +187,7 @@ extension AppContainer {
             }
 
             var webhookConfiguration: WebhookConfiguration?
-            if let target = await container.readyWebhookTarget() {
+            if let target = await container.configuredWebhookTarget() {
                 webhookConfiguration = target.configuration
                 requirements[WebhookDestinationSink.sinkID] = target.requirement
             }

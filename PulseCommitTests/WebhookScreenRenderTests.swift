@@ -63,6 +63,22 @@ final class WebhookScreenRenderTests: XCTestCase {
             )
         }.environmentObject(unconsented))
 
+        try await capture("03b-webhook-test-status", NavigationStack {
+            WebhookDestinationView(
+                initialDraft: WebhookSettingsDraft(endpoint: endpoint, token: sampleToken, tokenHeader: "Authorization"),
+                initialTestStatus: .delivered(host: "hooks.example.com", statusCode: 200),
+                initialScrollAnchor: "test",
+                sendTest: { _, _ in 200 }
+            )
+        }.environmentObject(consented))
+
+        try await capture("03c-webhook-invalid-url", NavigationStack {
+            WebhookDestinationView(
+                initialDraft: WebhookSettingsDraft(endpoint: "http://hooks.example.com/pulse", token: sampleToken, tokenHeader: "Authorization"),
+                sendTest: { _, _ in 200 }
+            )
+        }.environmentObject(consented))
+
         try await capture("04-consent-sheet", HealthExportConsentSheet(scope: scope, onAllow: {}, onDecline: {}))
 
         let now = Date()

@@ -110,8 +110,8 @@ struct HealthExportDisclosure: Equatable, Sendable {
         case .webhook:
             title = "Allow Health export to a webhook?"
             formats = "One JSON request per day: summary.json, the summary.md text and a file list. Raw samples, workouts and routes are not sent."
-            readers = "Whoever operates this server, and any service it forwards to."
-            retention = "The server keeps requests according to its operator's settings."
+            readers = ""
+            retention = ""
             deletion = "Disable this destination to stop future exports. Ask the server operator to delete data already sent; resetting Pulse Commit removes only local data."
             webhookNotice = Self.webhookNotice(host: target)
         }

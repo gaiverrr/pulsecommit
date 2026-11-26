@@ -15,6 +15,7 @@ struct WebhookDestinationView: View {
 
     @EnvironmentObject var container: AppContainer
     private let sendTestRequest: TestSender
+    private let initialScrollAnchor: String?
 
     @State private var endpoint = ""
     @State private var tokenHeader = WebhookConfiguration.defaultTokenHeader
@@ -27,14 +28,17 @@ struct WebhookDestinationView: View {
     @State private var consentScope: HealthExportConsentScope?
     @State private var consentRefresh = 0
     @State private var copied = false
+    @State private var hasStoredSettings = false
 
     init(
         initialDraft: WebhookSettingsDraft? = nil,
         initialTestStatus: TestStatus = .idle,
+        initialScrollAnchor: String? = nil,
         sendTest: @escaping TestSender = WebhookDestinationView.liveSendTest
     ) {
         self.sendTestRequest = sendTest
         _testStatus = State(initialValue: initialTestStatus)
+        self.initialScrollAnchor = initialScrollAnchor
         if let initialDraft {
             _endpoint = State(initialValue: initialDraft.endpoint)
             _token = State(initialValue: initialDraft.token)
@@ -57,21 +61,26 @@ struct WebhookDestinationView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                header
-                endpointCard
-                tokenCard
-                if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    noTokenWarning
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 20) {
+                    header
+                    endpointCard
+                    tokenCard
+                    if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        noTokenWarning
+                    }
+                    payloadCard
+                    testCard.id("test")
+                    continueButton
+                    consentCard
+                    removeButton
                 }
-                payloadCard
-                testCard
-                continueButton
-                consentCard
-                removeButton
+                .padding(16)
             }
-            .padding(16)
+            .onAppear {
+                if let initialScrollAnchor { proxy.scrollTo(initialScrollAnchor, anchor: .center) }
+            }
         }
         .background(Theme.bg.ignoresSafeArea())
         .navigationTitle("Webhook")
@@ -123,6 +132,7 @@ struct WebhookDestinationView: View {
                     .autocorrectionDisabled()
                     .font(.pcMonoDetail)
                     .foregroundStyle(Theme.accent)
+                    .accessibilityLabel("Endpoint URL")
                     .accessibilityIdentifier("webhook.endpoint")
             }
             if let message = draft.validationMessage {
@@ -153,6 +163,7 @@ struct WebhookDestinationView: View {
                             .autocorrectionDisabled()
                             .font(.pcMonoDetail)
                             .foregroundStyle(Theme.text)
+                            .accessibilityLabel("Header name")
                             .accessibilityIdentifier("webhook.header")
                         Text(WebhookTokenFormatting.headerPreview(header: tokenHeader))
                             .font(.pcCaptionMono)
@@ -170,20 +181,24 @@ struct WebhookDestinationView: View {
                                 Button(showToken ? "Hide" : "Show") { showToken.toggle() }
                                     .font(.pcCaption)
                                     .foregroundStyle(Theme.accent)
+                                    .frame(minWidth: 44, minHeight: 44)
+                                    .contentShape(Rectangle())
                                     .buttonStyle(.plain)
                                 Button(copied ? "Copied" : "Copy") { copyToken() }
                                     .font(.pcCaption)
                                     .foregroundStyle(Theme.accent)
+                                    .frame(minWidth: 44, minHeight: 44)
+                                    .contentShape(Rectangle())
                                     .buttonStyle(.plain)
-                                    .padding(.leading, 10)
                             }
                         }
                         Text(token.isEmpty ? "none" : (showToken ? token : WebhookTokenFormatting.masked(token)))
                             .font(.pcMonoDetail)
-                            .foregroundStyle(token.isEmpty ? Theme.faint : Theme.text)
+                            .foregroundStyle(token.isEmpty ? Theme.muted : Theme.text)
                             .lineLimit(showToken ? nil : 1)
                             .textSelection(.disabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityLabel(WebhookTokenFormatting.accessibilityLabel(token: token, revealed: showToken))
                             .accessibilityIdentifier("webhook.token")
                         HStack(spacing: 8) {
                             smallButton("Generate token", systemImage: "wand.and.stars") {
@@ -204,9 +219,9 @@ struct WebhookDestinationView: View {
                                     Image(systemName: "trash")
                                         .font(.system(size: 13, weight: .semibold))
                                         .foregroundStyle(Theme.error)
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 10)
+                                        .frame(width: 44, height: 44)
                                         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.elevated))
+                                        .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel("Remove token")
@@ -223,10 +238,11 @@ struct WebhookDestinationView: View {
             Label(title, systemImage: systemImage)
                 .font(.pcCaption.weight(.semibold))
                 .foregroundStyle(Theme.text)
-                .padding(.vertical, 8)
                 .padding(.horizontal, 10)
+                .frame(minHeight: 44)
                 .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.elevated))
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -345,7 +361,7 @@ struct WebhookDestinationView: View {
 
     @ViewBuilder
     private var removeButton: some View {
-        if consentScope != nil {
+        if hasStoredSettings {
             Button("Remove webhook") {
                 Task { @MainActor in
                     await container.clearWebhookSettings()
@@ -354,6 +370,7 @@ struct WebhookDestinationView: View {
                     tokenHeader = WebhookConfiguration.defaultTokenHeader
                     testStatus = .idle
                     consentScope = nil
+                    hasStoredSettings = false
                 }
             }
             .font(.pcBody)
@@ -419,6 +436,7 @@ struct WebhookDestinationView: View {
                 tokenHeader: submitted.tokenHeader
             )
             saveError = nil
+            hasStoredSettings = true
             return true
         } catch let error as WebhookConfigurationError {
             saveError = error.localizedDescription
@@ -430,17 +448,13 @@ struct WebhookDestinationView: View {
 
     private func persistIfValid() {
         guard loaded else { return }
-        if endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            Task { @MainActor in await container.clearWebhookSettings() }
-            return
-        }
-        guard validatedConfiguration != nil else { return }
         let submitted = draft
-        Task { @MainActor in await persist(submitted) }
+        Task { @MainActor in await container.applyWebhookDraftOnLeave(submitted) }
     }
 
     private func refreshConsentScope() async {
         consentScope = await container.currentConsentScope(for: .webhook)
+        hasStoredSettings = await container.storedWebhookSettings() != nil
     }
 
     private func loadIfNeeded() {
@@ -471,6 +485,13 @@ enum WebhookTokenFormatting {
             return "Sent as \(resolved): Bearer <token>"
         }
         return "Sent as \(resolved): <token>"
+    }
+
+    static func accessibilityLabel(token: String, revealed: Bool) -> String {
+        if token.isEmpty { return "Token, none" }
+        if revealed { return "Token, shown" }
+        guard token.count > 8 else { return "Token, hidden" }
+        return "Token, hidden, ends in \(token.suffix(4))"
     }
 
     static func masked(_ token: String) -> String {

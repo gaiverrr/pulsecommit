@@ -24,7 +24,12 @@ extension WebhookSinkError: LocalizedError {
         case .redirectRefused(let status):
             return "Endpoint redirected (HTTP \(status)). Redirects are refused; enter the final URL."
         case .transportFailure(let code):
-            return "Network error (\(code))"
+            switch code {
+            case -1009: return "No internet connection (\(code))"
+            case -1001: return "The endpoint did not respond in 30 seconds (\(code))"
+            case -1206 ... -1200: return "The endpoint's HTTPS certificate is not trusted (\(code))"
+            default: return "Network error (\(code))"
+            }
         case .invalidResponse:
             return "Endpoint returned a non-HTTP response"
         case .missingSummary:

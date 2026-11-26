@@ -84,13 +84,36 @@ extension AppContainer {
         await webhookTarget(categoryIDs: categoryIDs)?.scope
     }
 
-    func readyWebhookTarget() async -> (configuration: WebhookConfiguration, requirement: ConsentRequirement)? {
-        guard let target = await webhookTarget(categoryIDs: nil),
-              consentStore.hasCurrentConsent(for: target.scope) else { return nil }
+    func configuredWebhookTarget() async -> (configuration: WebhookConfiguration, requirement: ConsentRequirement)? {
+        guard let target = await webhookTarget(categoryIDs: nil) else { return nil }
         return (
             target.configuration,
             ConsentRequirement(sinkID: WebhookDestinationSink.sinkID, destination: target.scope.destination)
         )
+    }
+
+    func webhookExportIsConfigured() async -> Bool {
+        await configuredWebhookTarget() != nil
+    }
+
+    func applyWebhookDraftOnLeave(_ draft: WebhookSettingsDraft) async {
+        if draft.endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            await clearWebhookSettings()
+            return
+        }
+        if (try? draft.configuration()) != nil {
+            _ = try? await saveWebhookSettings(
+                endpoint: draft.endpoint,
+                token: draft.token,
+                tokenHeader: draft.tokenHeader
+            )
+            return
+        }
+        let stored = await storedWebhookSettings()
+        let submitted = draft.endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let stored, stored.endpoint != submitted {
+            preferences.webhookExportEnabled = false
+        }
     }
 
     private func webhookTarget(
@@ -109,7 +132,8 @@ extension AppContainer {
     }
 
     func webhookExportIsReady() async -> Bool {
-        await readyWebhookTarget() != nil
+        guard let target = await webhookTarget(categoryIDs: nil) else { return false }
+        return consentStore.hasCurrentConsent(for: target.scope)
     }
 
     func webhookTargetMatches(_ destination: HealthExportDestinationIdentity) async -> Bool {

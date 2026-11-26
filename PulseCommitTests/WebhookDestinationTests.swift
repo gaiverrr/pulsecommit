@@ -202,30 +202,44 @@ final class WebhookDestinationTests: XCTestCase {
         XCTAssertEqual(stored?.token, "")
     }
 
-    func test_containerIncludesWebhookSinkOnlyWhenConfiguredAndConsented() async throws {
+    private func configureGitHub(_ container: AppContainer) {
+        container.preferences.githubOwner = "octocat"
+        container.preferences.githubRepo = "health"
+        container.preferences.githubBranch = "main"
+        container.preferences.githubSubdir = ""
+    }
+
+    private func acceptWebhookConsent(_ container: AppContainer) async throws {
+        let maybeScope = await container.currentConsentScope(for: .webhook)
+        let scope = try XCTUnwrap(maybeScope)
+        let accepted = await container.acceptConsentIfCurrent(scope)
+        XCTAssertTrue(accepted)
+    }
+
+    func test_configuredWebhookIsAddedWithRequirementWhetherOrNotConsented() async throws {
         let container = makeContainer()
         container.preferences.enabledCategoryIds = ["steps"]
 
         var orchestrator = await container.orchestratorFactory()
         var sinkIDs = await orchestrator.configuredSinkIds
-        XCTAssertFalse(sinkIDs.contains("webhook"))
+        XCTAssertEqual(sinkIDs, [])
 
         _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization")
         orchestrator = await container.orchestratorFactory()
         sinkIDs = await orchestrator.configuredSinkIds
-        XCTAssertFalse(sinkIDs.contains("webhook"))
-        var configured = await IntentRunner.configuredSinkIds(container)
-        XCTAssertFalse(configured.contains("webhook"))
-
-        let maybeScope = await container.currentConsentScope(for: .webhook)
-        let scope = try XCTUnwrap(maybeScope)
-        let accepted = await container.acceptConsentIfCurrent(scope)
-        XCTAssertTrue(accepted)
-        orchestrator = await container.orchestratorFactory()
-        sinkIDs = await orchestrator.configuredSinkIds
         XCTAssertEqual(sinkIDs, ["webhook"])
-        configured = await IntentRunner.configuredSinkIds(container)
+        var configured = await IntentRunner.configuredSinkIds(container)
         XCTAssertEqual(configured, ["webhook"])
+        var ready = await container.webhookExportIsReady()
+        XCTAssertFalse(ready)
+
+        try await acceptWebhookConsent(container)
+        ready = await container.webhookExportIsReady()
+        XCTAssertTrue(ready)
+        let request = ExportRequest(mode: .lastDayOnly, enabledCategoryIds: ["steps"], enabledSinkIds: ["webhook"])
+        orchestrator = await container.orchestratorFactory()
+        let consented = await orchestrator.hasCurrentConsent(for: request)
+        XCTAssertTrue(consented)
 
         container.preferences.webhookExportEnabled = false
         orchestrator = await container.orchestratorFactory()
@@ -239,32 +253,116 @@ final class WebhookDestinationTests: XCTestCase {
         let container = makeContainer()
         container.preferences.enabledCategoryIds = ["steps"]
         _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: "one", tokenHeader: "Authorization")
-        let maybeScope = await container.currentConsentScope(for: .webhook)
-        let scope = try XCTUnwrap(maybeScope)
-        _ = await container.acceptConsentIfCurrent(scope)
+        try await acceptWebhookConsent(container)
 
         _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: "two", tokenHeader: "Authorization")
-        var configured = await IntentRunner.configuredSinkIds(container)
-        XCTAssertEqual(configured, ["webhook"])
+        var ready = await container.webhookExportIsReady()
+        XCTAssertTrue(ready)
 
         _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/y", token: "two", tokenHeader: "Authorization")
-        configured = await IntentRunner.configuredSinkIds(container)
+        ready = await container.webhookExportIsReady()
+        XCTAssertFalse(ready)
+    }
+
+    func test_staleWebhookConsentIsReportedNotSkipped() async throws {
+        let container = makeContainer()
+        container.preferences.enabledCategoryIds = ["steps"]
+        _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization")
+        try await acceptWebhookConsent(container)
+        container.preferences.enabledCategoryIds = ["steps", "sleep"]
+
+        let ids = await IntentRunner.configuredSinkIds(container)
+        XCTAssertEqual(ids, ["webhook"])
+        let orchestrator = await container.orchestratorFactory()
+        let missing = await orchestrator.missingConsentScopes(for: ExportRequest(
+            mode: .lastDayOnly,
+            enabledCategoryIds: ["steps", "sleep"],
+            enabledSinkIds: ids
+        ))
+        XCTAssertEqual(missing.map(\.destination.kind), [.webhook])
+        XCTAssertEqual(missing.first?.enabledCategoryIds, ["sleep", "steps"])
+
+        let viewModel = HomeViewModel(runRequest: { _, _ in .success }, enabledCategoryIds: { [] }, enabledSinkIds: { [] })
+        let home = HomeView(
+            viewModel: viewModel,
+            deviceName: "iPhone",
+            appVersion: "1.0.2",
+            timezoneAbbreviation: "UTC",
+            recentCommits: [],
+            recentCommitsBranchHint: nil,
+            healthPermissionRequestCompleted: true,
+            githubConfigured: ids.contains("github"),
+            telegramConfigured: ids.contains("telegram"),
+            webhookConfigured: ids.contains("webhook")
+        )
+        XCTAssertFalse(home.isEmptyState)
+    }
+
+    func test_githubAndStaleWebhookRunFailsWithConsentRequired() async throws {
+        let container = makeContainer()
+        configureGitHub(container)
+        container.preferences.enabledCategoryIds = ["steps"]
+        container.consentStore.accept(HealthExportConsentScope(
+            destination: .github(owner: "octocat", repo: "health", branch: "main", subdir: ""),
+            enabledCategoryIds: ["steps"]
+        ))
+        _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization")
+
+        let request = ExportRequest(mode: .lastDayOnly, enabledCategoryIds: ["steps"], enabledSinkIds: ["github", "webhook"])
+        let orchestrator = await container.orchestratorFactory()
+        let missing = await orchestrator.missingConsentScopes(for: request)
+        XCTAssertEqual(missing.map(\.destination.kind), [.webhook])
+
+        let status = await orchestrator.run(request)
+
+        XCTAssertEqual(status, .failed)
+        let entry = try XCTUnwrap(try container.history.recentEntries(limit: 1).first)
+        XCTAssertEqual(entry.errorKind, HistoryErrorKind.consentRequired)
+    }
+
+    func test_shortcutWithStaleWebhookConsentThrowsConsentRequired() async throws {
+        let container = makeContainer()
+        container.preferences.enabledCategoryIds = ["steps"]
+        _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization")
+        try await acceptWebhookConsent(container)
+        container.preferences.webhookExportEnabled = false
+        container.preferences.webhookExportEnabled = true
+
+        do {
+            _ = try await IntentRunner.run(mode: .lastDayOnly, container: container)
+            XCTFail("expected consentRequired")
+        } catch let error as IntentError {
+            guard case .consentRequired = error else {
+                return XCTFail("expected consentRequired, got \(error)")
+            }
+        }
+    }
+
+    func test_leavingWithInvalidChangedURLTurnsWebhookOff() async throws {
+        let container = makeContainer()
+        container.preferences.enabledCategoryIds = ["steps"]
+        _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization")
+
+        await container.applyWebhookDraftOnLeave(WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Bad Header"))
+        XCTAssertTrue(container.preferences.webhookExportEnabled)
+
+        await container.applyWebhookDraftOnLeave(WebhookSettingsDraft(endpoint: "http://other.example.com/x", token: token, tokenHeader: "Authorization"))
+        XCTAssertFalse(container.preferences.webhookExportEnabled)
+        let stored = await container.storedWebhookSettings()
+        XCTAssertEqual(stored?.endpoint, "https://hooks.example.com/x")
+        let configured = await IntentRunner.configuredSinkIds(container)
         XCTAssertEqual(configured, [])
     }
 
-    func test_unconsentedWebhookIsLeftOutSoOtherDestinationsStillRun() async throws {
-        let secrets = InMemorySecretsStore()
-        try await secrets.set("bot", for: "tg_bot_token")
-        try await secrets.set("-1001234567890", for: "tg_chat_id")
-        let container = makeContainer(secrets: secrets)
-        container.preferences.enabledCategoryIds = ["steps"]
-        _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: "", tokenHeader: "Authorization")
+    func test_leavingWithValidOrEmptyDraftSavesOrClears() async throws {
+        let container = makeContainer()
+        await container.applyWebhookDraftOnLeave(WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization"))
+        var stored = await container.storedWebhookSettings()
+        XCTAssertEqual(stored?.token, token)
 
-        let configured = await IntentRunner.configuredSinkIds(container)
-        XCTAssertEqual(configured, ["telegram"])
-        let orchestrator = await container.orchestratorFactory()
-        let sinkIDs = await orchestrator.configuredSinkIds
-        XCTAssertEqual(Set(sinkIDs), ["telegram"])
+        await container.applyWebhookDraftOnLeave(WebhookSettingsDraft(endpoint: " ", token: token, tokenHeader: "Authorization"))
+        stored = await container.storedWebhookSettings()
+        XCTAssertNil(stored)
     }
 
     func test_destinationSinkReportsHostAndStatusOnly() async throws {
@@ -365,6 +463,8 @@ final class WebhookDestinationTests: XCTestCase {
         XCTAssertFalse(masked.contains(token))
         XCTAssertTrue(masked.hasSuffix("6789"))
         XCTAssertFalse(WebhookTokenFormatting.payloadPreview(header: "Authorization", hasToken: true).contains(token))
+        XCTAssertEqual(WebhookTokenFormatting.accessibilityLabel(token: token, revealed: false), "Token, hidden, ends in 6789")
+        XCTAssertEqual(WebhookTokenFormatting.accessibilityLabel(token: "", revealed: false), "Token, none")
     }
 
     func test_preferencesResetClearsWebhookToggle() {
