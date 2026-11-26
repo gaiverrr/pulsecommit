@@ -21,6 +21,7 @@ struct HomeView: View {
     var onConnectTelegram: () -> Void = {}
     var onReconnectGitHub: () -> Void = {}
     var onCustomRange: () -> Void = {}
+    var onOpenLatestEntry: () -> Void = {}
     // Called when the user picks a new period from the chip-row Menu.
     // HomeContainerView persists this to PreferencesStore and updates the
     // viewModel.currentPeriod. The Menu does NOT dispatch an export.
@@ -349,6 +350,16 @@ struct HomeView: View {
         // .sensoryFeedback (replacing the imperative UIImpactFeedbackGenerator),
         // so the medium-impact tap is felt the moment the orchestrator flips
         // to .running.
+        VStack(alignment: .leading, spacing: 14) {
+            exportButton
+            subLabelButton
+            progressZone
+        }
+        .padding(.bottom, 14)
+        .animation(.easeInOut(duration: 0.18), value: viewModel.stageLabel)
+    }
+
+    private var exportButton: some View {
         Button {
             guard viewModel.phase != .running else { return }
             dispatch(nil)
@@ -368,6 +379,41 @@ struct HomeView: View {
             if case .error = old, case .running = new { return true }
             return false
         }
+    }
+
+    private var isError: Bool {
+        if case .error = viewModel.phase { return true }
+        return false
+    }
+
+    private var subLabelButton: some View {
+        Button {
+            if isError {
+                onOpenLatestEntry()
+            } else if viewModel.phase != .running {
+                dispatch(nil)
+            }
+        } label: {
+            subLabelText
+        }
+        .buttonStyle(HeroPressStyle())
+        .disabled(isRunning)
+        .accessibilityHidden(buttonSubLabel == nil || !isError)
+        .accessibilityLabel(Text(isError ? "Failure reason" : ""))
+        .accessibilityHint(Text(isError ? "Opens the latest History entry" : ""))
+        .accessibilityIdentifier("home.bigButton.subLabel")
+    }
+
+    private var subLabelText: some View {
+        Text(buttonSubLabel ?? " ")
+            .font(.pcMonoDetail)
+            .foregroundStyle(Color.black.opacity(0.65))
+            .lineLimit(2, reservesSpace: true)
+            .truncationMode(.tail)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .opacity(buttonSubLabel == nil ? 0 : 1)
+            .contentShape(Rectangle())
     }
 
     private var topZoneContent: some View {
@@ -392,32 +438,25 @@ struct HomeView: View {
                 .foregroundStyle(Color.black)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text(buttonSubLabel ?? " ")
-                .font(.pcMonoDetail)
-                .foregroundStyle(Color.black.opacity(0.65))
-                .lineLimit(2, reservesSpace: true)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .opacity(buttonSubLabel == nil ? 0 : 1)
-                .accessibilityHidden(buttonSubLabel == nil)
-            VStack(alignment: .leading, spacing: 14) {
-                stageLine
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.black.opacity(0.15)).frame(height: 3)
-                        Capsule().fill(Color.black).frame(width: geo.size.width * 0.4, height: 3)
-                    }
-                }
-                .frame(height: 3)
-                .accessibilityHidden(true)
-            }
-            .opacity(isRunning ? 1 : 0)
-            .accessibilityHidden(!isRunning)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(.bottom, 14)
-        .animation(.easeInOut(duration: 0.18), value: viewModel.stageLabel)
         .contentShape(Rectangle())
+    }
+
+    private var progressZone: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            stageLine
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.black.opacity(0.15)).frame(height: 3)
+                    Capsule().fill(Color.black).frame(width: geo.size.width * 0.4, height: 3)
+                }
+            }
+            .frame(height: 3)
+            .accessibilityHidden(true)
+        }
+        .opacity(isRunning ? 1 : 0)
+        .accessibilityHidden(!isRunning)
     }
 
     private var stageLine: some View {
@@ -580,7 +619,7 @@ struct HomeView: View {
         case .done(let at):
             return "Last commit · \(Self.relativeTime(from: at)) · ✓"
         case .error(let reason):
-            return "Last attempt failed · \(reason)"
+            return reason
         }
     }
 

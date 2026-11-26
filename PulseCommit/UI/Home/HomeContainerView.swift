@@ -16,6 +16,7 @@ struct HomeContainerView: View {
     @State private var healthPermissionNoticeDismissed: Bool = false
     @State private var recentCommits: [HomeView.RecentCommitRow] = []
     @State private var recentCommitsBranchHint: String?
+    @State private var latestEntry: HistoryEntrySnapshot?
 
     var body: some View {
         Group {
@@ -68,6 +69,9 @@ struct HomeContainerView: View {
                         destinationsPath = [.github]
                         selectedTab = .destinations
                     },
+                    onOpenLatestEntry: {
+                        latestEntry = (try? container.history.recentEntries(limit: 1))?.first
+                    },
                     onSelectPeriod: { period in
                         viewModel.currentPeriod = period
                         container.preferences.selectedPeriod = period.storageKey
@@ -87,6 +91,9 @@ struct HomeContainerView: View {
                         onDecline: { viewModel.declinePendingConsent() }
                     )
                     .presentationDetents([.large])
+                }
+                .sheet(item: $latestEntry) { entry in
+                    NavigationStack { HistoryDetailView(entry: entry) }
                 }
                 .onChange(of: viewModel.phase) { _, newPhase in
                     refreshState()

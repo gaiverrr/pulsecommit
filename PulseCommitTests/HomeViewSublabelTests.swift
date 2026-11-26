@@ -31,11 +31,11 @@ final class HomeViewSublabelTests: XCTestCase {
         XCTAssertTrue(label!.hasSuffix(" · ✓"), "got: \(label ?? "nil")")
     }
 
-    func test_buttonSubLabel_errorIncludesReason() {
+    func test_buttonSubLabel_errorIsReasonWithoutPrefix() {
         let vm = makeViewModelInPhase(.error(reason: "boom"))
         XCTAssertEqual(
             HomeView.computeButtonSubLabel(for: vm, periodSubLabel: "ignored"),
-            "Last attempt failed · boom"
+            "boom"
         )
     }
 
