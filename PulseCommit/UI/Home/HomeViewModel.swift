@@ -15,7 +15,7 @@ final class HomeViewModel {
         case idle
         case running
         case done(at: Date)
-        case error(reason: String)
+        case error(reason: String, entryId: UUID? = nil)
     }
 
     // The set of period choices a user can pick from the Home big-button
@@ -202,13 +202,13 @@ final class HomeViewModel {
             phase = .done(at: clock())
         case .failed, .paywalled:
             if let coverageError = result.coverageError {
-                phase = .error(reason: coverageError.userMessage)
+                phase = .error(reason: coverageError.userMessage, entryId: result.entryId)
             } else if recentHistoryProvider().first?.errorKind == HistoryErrorKind.consentRequired,
                let first = await consentPreflight(request).first {
                 pendingConsentScope = first
                 phase = .idle
             } else {
-                phase = .error(reason: "export failed")
+                phase = .error(reason: "export failed", entryId: result.entryId)
             }
         }
         stagePrefix = ""

@@ -21,6 +21,7 @@ struct HomeView: View {
     var onConnectTelegram: () -> Void = {}
     var onReconnectGitHub: () -> Void = {}
     var onCustomRange: () -> Void = {}
+    var onOpenEntry: (UUID) -> Void = { _ in }
     // Called when the user picks a new period from the chip-row Menu.
     // HomeContainerView persists this to PreferencesStore and updates the
     // viewModel.currentPeriod. The Menu does NOT dispatch an export.
@@ -349,25 +350,78 @@ struct HomeView: View {
         // .sensoryFeedback (replacing the imperative UIImpactFeedbackGenerator),
         // so the medium-impact tap is felt the moment the orchestrator flips
         // to .running.
+        exportButton
+            .overlayPreferenceValue(SubLabelBoundsKey.self) { anchor in
+                GeometryReader { geo in
+                    if case .openEntry(let entryId) = Self.subLabelAction(for: viewModel.phase),
+                       let anchor {
+                        let rect = geo[anchor]
+                        Button {
+                            onOpenEntry(entryId)
+                        } label: {
+                            Color.clear.contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: rect.width, height: rect.height + 28)
+                        .contentShape(Rectangle())
+                        .position(x: rect.midX, y: rect.midY)
+                        .accessibilityLabel(Text(buttonSubLabel ?? ""))
+                        .accessibilityHint(Text("Opens this run in History"))
+                        .accessibilityIdentifier("home.bigButton.subLabel")
+                    }
+                }
+            }
+    }
+
+    private var exportButton: some View {
         Button {
             guard viewModel.phase != .running else { return }
             dispatch(nil)
         } label: {
-            topZoneContent
+            VStack(alignment: .leading, spacing: 14) {
+                topZoneContent
+                subLabelText
+                progressZone
+            }
+            .padding(.bottom, 14)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(HeroPressStyle())
         .disabled(isRunning)
         .accessibilityLabel(Text(buttonTitle))
         .accessibilityHint(Text(Self.accessibilityHintText(for: viewModel, buttonSubLabel: buttonSubLabel)))
         .accessibilityIdentifier("home.bigButton.topZone")
+        .animation(.easeInOut(duration: 0.18), value: viewModel.stageLabel)
         .sensoryFeedback(.impact(weight: .medium), trigger: viewModel.phase) { old, new in
-            // Fire only on the user-initiated idle→running transition. Skip
-            // running→done/error so we don't double-tap the user after they
-            // already felt the activation haptic.
             if case .idle = old, case .running = new { return true }
             if case .error = old, case .running = new { return true }
             return false
         }
+    }
+
+    static func subLabelAction(for phase: HomeViewModel.Phase) -> SubLabelAction {
+        switch phase {
+        case .error(_, let entryId):
+            guard let entryId else { return .none }
+            return .openEntry(entryId)
+        case .running:
+            return .none
+        case .idle, .done:
+            return .export
+        }
+    }
+
+    private var subLabelText: some View {
+        Text(buttonSubLabel ?? " ")
+            .font(.pcMonoDetail)
+            .foregroundStyle(Color.black.opacity(0.65))
+            .lineLimit(2, reservesSpace: true)
+            .truncationMode(.tail)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .opacity(buttonSubLabel == nil ? 0 : 1)
+            .anchorPreference(key: SubLabelBoundsKey.self, value: .bounds) { $0 }
     }
 
     private var topZoneContent: some View {
@@ -392,32 +446,24 @@ struct HomeView: View {
                 .foregroundStyle(Color.black)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text(buttonSubLabel ?? " ")
-                .font(.pcMonoDetail)
-                .foregroundStyle(Color.black.opacity(0.65))
-                .lineLimit(2, reservesSpace: true)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .opacity(buttonSubLabel == nil ? 0 : 1)
-                .accessibilityHidden(buttonSubLabel == nil)
-            VStack(alignment: .leading, spacing: 14) {
-                stageLine
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.black.opacity(0.15)).frame(height: 3)
-                        Capsule().fill(Color.black).frame(width: geo.size.width * 0.4, height: 3)
-                    }
-                }
-                .frame(height: 3)
-                .accessibilityHidden(true)
-            }
-            .opacity(isRunning ? 1 : 0)
-            .accessibilityHidden(!isRunning)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(.bottom, 14)
-        .animation(.easeInOut(duration: 0.18), value: viewModel.stageLabel)
-        .contentShape(Rectangle())
+    }
+
+    private var progressZone: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            stageLine
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.black.opacity(0.15)).frame(height: 3)
+                    Capsule().fill(Color.black).frame(width: geo.size.width * 0.4, height: 3)
+                }
+            }
+            .frame(height: 3)
+            .accessibilityHidden(true)
+        }
+        .opacity(isRunning ? 1 : 0)
+        .accessibilityHidden(!isRunning)
     }
 
     private var stageLine: some View {
@@ -579,8 +625,8 @@ struct HomeView: View {
             return nil
         case .done(let at):
             return "Last commit · \(Self.relativeTime(from: at)) · ✓"
-        case .error(let reason):
-            return "Last attempt failed · \(reason)"
+        case .error(let reason, _):
+            return reason
         }
     }
 
@@ -591,6 +637,9 @@ struct HomeView: View {
         // hint announcements during a long export.
         if case .running = viewModel.phase {
             return "Export in progress"
+        }
+        if case .openEntry = subLabelAction(for: viewModel.phase) {
+            return ""
         }
         return buttonSubLabel ?? ""
     }
@@ -862,6 +911,20 @@ struct HeroPressStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
+enum SubLabelAction: Equatable {
+    case openEntry(UUID)
+    case export
+    case none
+}
+
+struct SubLabelBoundsKey: PreferenceKey {
+    static let defaultValue: Anchor<CGRect>? = nil
+
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = value ?? nextValue()
     }
 }
 
