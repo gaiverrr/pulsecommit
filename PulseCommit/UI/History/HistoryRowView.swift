@@ -55,7 +55,7 @@ struct HistoryRowView: View {
     @ViewBuilder
     private func sinkIcon(for badge: HistoryRowModel.SinkBadge) -> some View {
         let tint = badge.ok ? Theme.success : Theme.error
-        switch badge.label.lowercased() {
+        switch (badge.kind ?? badge.label).lowercased() {
         case "github":
             Image("github")
                 .resizable()
@@ -64,6 +64,10 @@ struct HistoryRowView: View {
                 .foregroundStyle(tint)
         case "telegram":
             Image(systemName: "paperplane.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(tint)
+        case "webhook":
+            Image(systemName: "arrow.up.forward.app")
                 .font(.system(size: 12))
                 .foregroundStyle(tint)
         default:

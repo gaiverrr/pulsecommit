@@ -126,26 +126,7 @@ final class HomeViewModel {
                 return await orchestrator.runResult(request, progress: progress)
             },
             enabledCategoryIds: { container.preferences.enabledCategoryIds },
-            enabledSinkIds: {
-                var ids = Set<String>()
-                let secrets = container.secrets
-                let prefs = container.preferences
-                if prefs.githubExportEnabled,
-                   let owner = prefs.githubOwner,
-                   let repo = prefs.githubRepo,
-                   let branch = prefs.githubBranch,
-                   !owner.isEmpty, !repo.isEmpty, !branch.isEmpty,
-                   await KeychainTokenVault.hasStoredTokens(in: secrets) {
-                    ids.insert("github")
-                }
-                if prefs.telegramExportEnabled,
-                   let bot = (try? await secrets.get("tg_bot_token")) ?? nil,
-                   let chat = (try? await secrets.get("tg_chat_id")) ?? nil,
-                   !bot.isEmpty, !chat.isEmpty {
-                    ids.insert("telegram")
-                }
-                return ids
-            },
+            enabledSinkIds: { await IntentRunner.configuredSinkIds(container) },
             recentHistory: {
                 let entries = (try? container.history.recentEntries(limit: 20)) ?? []
                 return entries.map {

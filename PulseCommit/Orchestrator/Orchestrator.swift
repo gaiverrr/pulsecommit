@@ -463,6 +463,12 @@ actor Orchestrator {
         } else {
             telegramRef = nil
         }
+        let webhookRef: String?
+        if case .success(let ref, _) = sinkResults[WebhookDestinationSink.sinkID] {
+            webhookRef = ref
+        } else {
+            webhookRef = nil
+        }
 
         let advancesCursor: Bool
         switch request.mode {
@@ -492,7 +498,8 @@ actor Orchestrator {
                         githubCommitSha: githubSha,
                         githubCommitURLString: githubURL,
                         githubBranch: githubBranch,
-                        telegramMessageReference: telegramRef
+                        telegramMessageReference: telegramRef,
+                        webhookReference: webhookRef
                     )
                     try store.appendAndAdvanceCursor(entry, cursor: nextCursor)
                 }
@@ -508,7 +515,8 @@ actor Orchestrator {
                         githubCommitSha: githubSha,
                         githubCommitURLString: githubURL,
                         githubBranch: githubBranch,
-                        telegramMessageReference: telegramRef
+                        telegramMessageReference: telegramRef,
+                        webhookReference: webhookRef
                     )
                     try store.append(entry)
                 }

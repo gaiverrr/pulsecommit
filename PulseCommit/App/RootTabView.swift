@@ -11,7 +11,7 @@ struct RootTabView: View {
     }
 
     enum DestinationsRoute: Hashable {
-        case github, telegram
+        case github, telegram, webhook
     }
 
     init() {

@@ -9,6 +9,7 @@ struct HistoryRowModel: Identifiable, Hashable {
     struct SinkBadge: Hashable {
         var label: String
         var ok: Bool
+        var kind: String? = nil
     }
 
     var id: UUID
@@ -50,7 +51,10 @@ struct HistoryRowModel: Identifiable, Hashable {
         )
 
         let badges: [SinkBadge] = snapshot.sinks.map { name in
-            SinkBadge(label: name, ok: isSuccess)
+            if name == WebhookDestinationSink.sinkID, isSuccess, let reference = snapshot.webhookReference {
+                return SinkBadge(label: reference, ok: true, kind: name)
+            }
+            return SinkBadge(label: name, ok: isSuccess, kind: name)
         }
 
         let shortHash = snapshot.githubCommitSha.map { String($0.prefix(8)) }

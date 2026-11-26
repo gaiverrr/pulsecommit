@@ -78,7 +78,54 @@ extension AppContainer {
         // same repo/chat and races the SwiftData cursor.
         let runGate = ExportRunGate()
 
-        let factory: @MainActor (AppContainer) async -> Orchestrator = { container in
+        let factory = defaultOrchestratorFactory(runGate: runGate, healthStore: healthStore)
+
+        let container = AppContainer(
+            secrets: secrets,
+            preferences: preferences,
+            history: history,
+            healthStore: healthStore,
+            registry: registry,
+            consentStore: consentStore,
+            automaticWorkoutConsentStore: automaticConsentStore,
+            automaticWorkoutAttempts: automaticAttempts,
+            orchestratorFactory: factory
+        )
+        let sender = AutomaticWorkoutTelegramSender(
+            currentCredentials: { [weak container] in
+                await container?.currentAutomaticWorkoutTelegramCredentials()
+            }
+        )
+        let weakContainer = WeakAutomaticWorkoutContainer(container)
+        let coordinator = AutomaticWorkoutDeliveryCoordinator(
+            source: AutomaticWorkoutHealthSource(store: healthStore, historyProvider: healthStore),
+            sender: sender,
+            attempts: automaticAttempts,
+            configuration: { [weak container] in
+                await container?.currentAutomaticWorkoutConfiguration()
+            },
+            protectedDataAvailable: {
+                await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
+            },
+            stateDidChange: {
+                await MainActor.run { weakContainer.value?.noteAutomaticWorkoutStateChanged() }
+            }
+        )
+        container.installAutomaticWorkoutCoordinator(coordinator)
+        container.installAutomaticWorkoutObserverController(
+            AutomaticWorkoutObserverController(
+                store: healthStore,
+                preferences: preferences,
+                coordinator: coordinator
+            )
+        )
+        return container
+    }
+    @MainActor static func defaultOrchestratorFactory(
+        runGate: ExportRunGate,
+        healthStore: HealthStoreClient
+    ) -> @MainActor (AppContainer) async -> Orchestrator {
+        return { container in
             let tz = TimeZone.current
             let deviceName = UIDevice.current.name
             let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0.0"
@@ -139,6 +186,12 @@ extension AppContainer {
                 )
             }
 
+            var webhookConfiguration: WebhookConfiguration?
+            if let target = await container.readyWebhookTarget() {
+                webhookConfiguration = target.configuration
+                requirements[WebhookDestinationSink.sinkID] = target.requirement
+            }
+
             let telegramBotAtFactory = capturedTelegramBot
             let verifier: Orchestrator.ConsentVerifier = { requirement, categoryIDs in
                 let currentCategories = await MainActor.run { container.preferences.enabledCategoryIds }
@@ -165,6 +218,8 @@ extension AppContainer {
                     }
                     guard current.0, current.1 == messageThreadID,
                           currentBot == telegramBotAtFactory, currentChat == chatID else { return false }
+                case .webhook:
+                    guard await container.webhookTargetMatches(requirement.destination) else { return false }
                 }
 
                 return container.consentStore.hasCurrentConsent(
@@ -187,6 +242,13 @@ extension AppContainer {
                     authorizePayload: { await verifier(requirement, categoryIDsAtFactory) }
                 ))
             }
+            if let webhookConfiguration, let requirement = requirements[WebhookDestinationSink.sinkID] {
+                sinks.append(WebhookDestinationSink(sink: WebhookSink(
+                    configuration: webhookConfiguration,
+                    session: EphemeralAPISession.make(),
+                    authorizePayload: { await verifier(requirement, categoryIDsAtFactory) }
+                )))
+            }
 
             return Orchestrator(
                 windowResolver: ExportWindowResolver(timezone: tz),
@@ -208,46 +270,5 @@ extension AppContainer {
                 }
             )
         }
-
-        let container = AppContainer(
-            secrets: secrets,
-            preferences: preferences,
-            history: history,
-            healthStore: healthStore,
-            registry: registry,
-            consentStore: consentStore,
-            automaticWorkoutConsentStore: automaticConsentStore,
-            automaticWorkoutAttempts: automaticAttempts,
-            orchestratorFactory: factory
-        )
-        let sender = AutomaticWorkoutTelegramSender(
-            currentCredentials: { [weak container] in
-                await container?.currentAutomaticWorkoutTelegramCredentials()
-            }
-        )
-        let weakContainer = WeakAutomaticWorkoutContainer(container)
-        let coordinator = AutomaticWorkoutDeliveryCoordinator(
-            source: AutomaticWorkoutHealthSource(store: healthStore, historyProvider: healthStore),
-            sender: sender,
-            attempts: automaticAttempts,
-            configuration: { [weak container] in
-                await container?.currentAutomaticWorkoutConfiguration()
-            },
-            protectedDataAvailable: {
-                await MainActor.run { UIApplication.shared.isProtectedDataAvailable }
-            },
-            stateDidChange: {
-                await MainActor.run { weakContainer.value?.noteAutomaticWorkoutStateChanged() }
-            }
-        )
-        container.installAutomaticWorkoutCoordinator(coordinator)
-        container.installAutomaticWorkoutObserverController(
-            AutomaticWorkoutObserverController(
-                store: healthStore,
-                preferences: preferences,
-                coordinator: coordinator
-            )
-        )
-        return container
     }
 }

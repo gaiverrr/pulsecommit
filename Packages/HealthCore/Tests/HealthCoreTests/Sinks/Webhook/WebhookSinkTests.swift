@@ -132,6 +132,18 @@ final class WebhookSinkTests: XCTestCase {
         XCTAssertNotEqual(WebhookMockTransport.captured.first?.value(forHTTPHeaderField: "Idempotency-Key"), keys[0])
     }
 
+    func test_deliverDailyReportsStatusAndKey() async throws {
+        WebhookMockTransport.reset([ok(202)])
+        let sink = try makeSink()
+
+        let delivery = try await sink.deliverDaily(snapshot: makeSnapshot(), files: makeFiles(), onAttempt: nil)
+
+        let request = try XCTUnwrap(WebhookMockTransport.captured.first)
+        XCTAssertEqual(delivery.statusCode, 202)
+        XCTAssertEqual(delivery.idempotencyKey, request.value(forHTTPHeaderField: "Idempotency-Key"))
+        XCTAssertEqual(sink.host, "hooks.example.com")
+    }
+
     func test_any2xxSucceeds() async throws {
         for status in [200, 202, 204] {
             WebhookMockTransport.reset([ok(status)])

@@ -171,7 +171,22 @@ struct HistoryDetailView: View {
                                 .truncationMode(.middle)
                         }
                     }
-                    if entry.githubCommitURLString == nil && entry.telegramMessageReference == nil {
+                    if let webhook = entry.webhookReference {
+                        HStack {
+                            Image(systemName: "arrow.up.forward.app")
+                                .foregroundStyle(Theme.accent)
+                            Text("webhook")
+                                .font(.pcBody)
+                                .foregroundStyle(Theme.text)
+                            Spacer()
+                            Text(webhook)
+                                .font(.pcMonoDetail)
+                                .foregroundStyle(Theme.dim)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
+                    if entry.githubCommitURLString == nil && entry.telegramMessageReference == nil && entry.webhookReference == nil {
                         Text("> no external references recorded")
                             .font(.pcCaptionMono)
                             .foregroundStyle(Theme.dim)

@@ -18,6 +18,7 @@ struct HistoryEntrySnapshot: Identifiable, Hashable, Sendable {
     let githubCommitURLString: String?
     let githubBranch: String?
     let telegramMessageReference: String?
+    let webhookReference: String?
 
     init(
         id: UUID,
@@ -31,7 +32,8 @@ struct HistoryEntrySnapshot: Identifiable, Hashable, Sendable {
         githubCommitSha: String? = nil,
         githubCommitURLString: String? = nil,
         githubBranch: String? = nil,
-        telegramMessageReference: String? = nil
+        telegramMessageReference: String? = nil,
+        webhookReference: String? = nil
     ) {
         self.id = id
         self.startedAt = startedAt
@@ -45,6 +47,7 @@ struct HistoryEntrySnapshot: Identifiable, Hashable, Sendable {
         self.githubCommitURLString = githubCommitURLString
         self.githubBranch = githubBranch
         self.telegramMessageReference = telegramMessageReference
+        self.webhookReference = webhookReference
     }
 
     static let removedLimitMessage = "Export blocked by a limit removed in 1.0"
@@ -75,7 +78,8 @@ struct HistoryEntrySnapshot: Identifiable, Hashable, Sendable {
             githubCommitSha: entry.githubCommitSha,
             githubCommitURLString: entry.githubCommitURLString,
             githubBranch: entry.githubBranch,
-            telegramMessageReference: entry.telegramMessageReference
+            telegramMessageReference: entry.telegramMessageReference,
+            webhookReference: entry.webhookReference
         )
     }
 }

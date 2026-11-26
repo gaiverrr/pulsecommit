@@ -103,6 +103,9 @@ enum IntentRunner {
            !bot.isEmpty, !chat.isEmpty {
             ids.insert("telegram")
         }
+        if await container.webhookExportIsReady() {
+            ids.insert(WebhookDestinationSink.sinkID)
+        }
         return ids
     }
 

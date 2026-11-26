@@ -135,6 +135,8 @@ final class AppContainer: ObservableObject {
                 destination: .telegram(chatID: chat, messageThreadID: preferences.telegramThreadId),
                 enabledCategoryIds: categories
             )
+        case .webhook:
+            return await webhookConsentScope(categoryIDs: categories)
         }
     }
 

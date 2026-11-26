@@ -13,6 +13,7 @@ struct HomeView: View {
     var healthPermissionNoticeDismissed: Bool = false
     var githubConfigured: Bool = false
     var telegramConfigured: Bool = false
+    var webhookConfigured: Bool = false
     var onGrantHealth: () -> Void = {}
     var onOpenHealthSettings: () -> Void = {}
     var onDismissHealthPermissionNotice: () -> Void = {}
@@ -26,7 +27,7 @@ struct HomeView: View {
     var onSelectPeriod: (HomeViewModel.Period) -> Void = { _ in }
 
     var isEmptyState: Bool {
-        !githubConfigured && !telegramConfigured
+        !githubConfigured && !telegramConfigured && !webhookConfigured
     }
 
     struct RecentCommitRow: Identifiable, Equatable {

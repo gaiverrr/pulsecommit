@@ -55,6 +55,7 @@ final class HistoryEntry {
     var githubCommitURLString: String?
     var githubBranch: String?
     var telegramMessageReference: String?
+    var webhookReference: String?
 
     init(
         id: UUID = UUID(),
@@ -68,7 +69,8 @@ final class HistoryEntry {
         githubCommitSha: String? = nil,
         githubCommitURLString: String? = nil,
         githubBranch: String? = nil,
-        telegramMessageReference: String? = nil
+        telegramMessageReference: String? = nil,
+        webhookReference: String? = nil
     ) {
         self.id = id
         self.startedAt = startedAt
@@ -82,6 +84,7 @@ final class HistoryEntry {
         self.githubCommitURLString = githubCommitURLString
         self.githubBranch = githubBranch
         self.telegramMessageReference = telegramMessageReference
+        self.webhookReference = webhookReference
     }
 
     // MARK: Derived accessors

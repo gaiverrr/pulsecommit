@@ -35,6 +35,11 @@ extension WebhookSinkError: LocalizedError {
     }
 }
 
+public struct WebhookDelivery: Equatable, Sendable {
+    public let statusCode: Int
+    public let idempotencyKey: String
+}
+
 public final class WebhookSink: Sink {
     public let id: String
 
@@ -88,15 +93,26 @@ public final class WebhookSink: Sink {
         files: [FileEntry],
         onAttempt: AttemptHandler?
     ) async throws -> SinkResult {
+        let delivery = try await deliverDaily(snapshot: snapshot, files: files, onAttempt: onAttempt)
+        return .success(reference: delivery.idempotencyKey, url: nil)
+    }
+
+    public var host: String { configuration.host }
+
+    public func deliverDaily(
+        snapshot: DailySnapshot,
+        files: [FileEntry],
+        onAttempt: AttemptHandler?
+    ) async throws -> WebhookDelivery {
         let payload = try WebhookPayload.daily(snapshot: snapshot, files: files)
-        _ = try await post(
+        let status = try await post(
             body: payload.body,
             requestID: payload.idempotencyKey,
             appVersion: snapshot.appVersion,
             requiresConsent: true,
             onAttempt: onAttempt
         )
-        return .success(reference: payload.idempotencyKey, url: nil)
+        return WebhookDelivery(statusCode: status, idempotencyKey: payload.idempotencyKey)
     }
 
     public func sendTest(appVersion: String, now: Date = Date()) async throws -> Int {
