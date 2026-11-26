@@ -17,6 +17,10 @@ Daily Apple Health exports for your own AI agent as JSON and Markdown, via Teleg
 ## What's New (1.0.2)
 
 - New Webhook destination: each export is sent as one JSON POST to an HTTPS URL you own, with an optional token. Use it with any agent, automation tool or script that accepts a webhook.
+- Shortcuts exports can target "Webhook only" or "All configured destinations".
+- The Home export button no longer shifts while an export runs.
+- A failed export's reason opens its History entry.
+- Destinations you have not configured show OFF.
 - App renamed to Pulse Commit: Health Export.
 
 ## What's New (1.0.1)
