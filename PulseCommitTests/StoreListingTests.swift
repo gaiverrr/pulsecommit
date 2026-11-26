@@ -95,6 +95,18 @@ final class StoreListingTests: XCTestCase {
         XCTAssertEqual(Set(keywordList).count, keywordList.count, "Keywords must not repeat")
     }
 
+    func test_keywords_containNoThirdPartyTrademarks() throws {
+        let body = try read("docs/store/listing.md")
+        guard let range = body.range(of: "## Keywords\n```\n") ?? body.range(of: "## Keywords\n\n```\n") else {
+            XCTFail("Keywords section missing"); return
+        }
+        let rest = body[range.upperBound...]
+        let keywords = String(rest[..<rest.range(of: "\n```")!.lowerBound]).lowercased()
+        for brand in ["openclaw", "hermes", "claude", "chatgpt", "gemini"] {
+            XCTAssertFalse(keywords.contains(brand), "Keywords must not contain trademark: \(brand)")
+        }
+    }
+
     func test_description_isPlainTextWithinFourThousandCharacterLimit() throws {
         let body = try read("docs/store/listing.md")
         let description = extractField(body, heading: "Description") ?? ""

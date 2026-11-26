@@ -37,13 +37,13 @@ WHAT IT DOES
 2. Connect Telegram with a bot token and chat ID, connect GitHub through OAuth Device Flow and select a repository, or add a webhook URL.
 3. Review the destination-specific disclosure, then export.
 
-Each successful GitHub delivery creates a new commit with summary.json and summary.md, plus samples/*.json for enabled categories with readable samples, workouts/*.json for workouts present, and routes/*.gpx only for workouts with route data. Re-exporting the same day creates another commit. Every JSON file carries schema_version 1.0.
+Each successful GitHub delivery creates a new commit with summary.json and summary.md, plus samples/*.json for enabled categories, workouts/*.json for workouts present, and routes/*.gpx for workouts with route data. Re-exporting the same day creates another commit. Every JSON file has schema_version 1.0.
 
 Webhook exports are one JSON POST per exported day to an HTTPS URL you own, with an optional bearer token in a header you choose. The body holds summary.json, the summary.md text and a file manifest. Redirects and local network addresses are refused. Whoever runs that server can read and keep what it receives.
 
-Telegram exports contain a Markdown summary and ZIP attachment. Its setup screen can send a clearly labeled sample message before any Health export.
+Telegram exports contain a Markdown summary and ZIP attachment. Its setup screen can send a labeled sample message before any export.
 
-An optional, separate consent can send one text-only Telegram message after a finished workout is saved to Apple Health. Pulse Commit checks a rolling 72-hour window after the current opt-in time and locally deduplicates by workout. These messages omit routes, GPS points, raw heart-rate samples, custom zones, full-day totals, ZIP files and JSON. iPhone lock, sync, network and background scheduling can delay delivery. An uncertain request is not resent automatically; manual retry warns about possible duplication.
+An optional, separate consent can send one text-only Telegram message after a finished workout is saved to Apple Health. It checks a rolling 72-hour window after opt-in and deduplicates by workout locally. They omit routes, GPS points, raw heart-rate samples, custom zones, full-day totals, ZIP files and JSON. iPhone lock, sync, network and background scheduling can delay delivery. An uncertain request is not resent automatically; manual retry warns about possible duplication.
 
 When several destinations are enabled, one may receive data even if the overall run fails because another destination failed. Retrying can create another GitHub commit, repeat a Telegram message and ZIP that already arrived, or deliver a webhook request again. History shows the overall result.
 
@@ -67,7 +67,7 @@ Approve destination consent in Pulse Commit before an automation can export. Loc
 
 PRICE
 
-Pulse Commit 1.0 is free. There is no export limit, in-app purchase, or subscription. Every feature is available to everyone.
+Pulse Commit 1.0 is free. There is no export limit, in-app purchase, or subscription. All features are free for everyone.
 
 If you don't have a GitHub account or a Telegram bot, this app is not for you. The destinations are yours; Pulse Commit does not host them.
 
@@ -78,7 +78,7 @@ Support: hi@pulsecommit.app
 ## Keywords
 
 ```
-telegram,webhook,llm,openclaw,hermes,json,healthkit,github,gpx,shortcuts,markdown,hrv,sleep,steps
+telegram,webhook,llm,json,healthkit,github,gpx,shortcuts,markdown,hrv,sleep,steps,automation,backup
 ```
 
 ## URLs
