@@ -29,14 +29,6 @@ final class MarketingDemoTests: XCTestCase {
         XCTAssertTrue(token.hasPrefix("demo"))
     }
 
-    func test_container_webhookTestReturns200WithoutNetwork() async throws {
-        let container = MarketingDemo.makeContainer(stepDelay: .zero)
-        let stored = await container.currentWebhookConfiguration()
-        let configuration = try XCTUnwrap(stored)
-        let status = try await container.webhookTestSender(configuration, "1.0.2")
-        XCTAssertEqual(status, 200)
-    }
-
     func test_container_seedsWebhookHistoryRows() throws {
         let container = MarketingDemo.makeContainer(stepDelay: .zero)
         let entries = try container.history.recentEntries(limit: 50)

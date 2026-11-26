@@ -13,11 +13,11 @@ Primary reference: [Apple — Screenshot specifications](https://developer.apple
 | File | Kicker | Caption | Screen |
 | --- | --- | --- | --- |
 | `01-telegram.png` | `> telegram` | Apple Health, every evening, to your AI agent | Telegram chat drawn in React (illustrative, not a capture) |
-| `02-webhook.png` | `$ pulse remote add webhook` | POST to any endpoint you own | Webhook screen, masked token, stubbed test HTTP 200 |
+| `02-webhook.png` | `$ pulse remote add webhook` | POST to any endpoint you own | Webhook screen: endpoint, masked token, payload |
 | `03-history.png` | `$ git log --oneline` | One commit per day, in your own repo | History |
 | `04-home.png` | `$ pulse commit --since=today` | Export now, or let Shortcuts run it | Home, Export Now |
 | `05-destinations.png` | `$ pulse remote -v` | Telegram, GitHub and your webhook | Destinations, three configured |
-| `06-automate.png` | `$ shortcuts run "Export Today"` | Today at 21:00 or yesterday at 08:30 | Automate |
+| `06-automate.png` | `$ shortcuts run "Export Health Data"` | Today at 21:00 or yesterday at 08:30 | Automate |
 
 Captions 1-3 come from the 1.0.2 design canvas. Captions 4-6 and all kickers were written for this set. App screens 2-6 are captured from the Debug app with the `-marketingDemo` seam: synthetic data, the synthetic host `agent.example.net` and a fake token. They are screenshot preparation, not evidence of live delivery or a real Health export.
 

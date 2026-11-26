@@ -84,7 +84,6 @@ enum MarketingDemo {
                 )
             }
         )
-        container.webhookTestSender = { _, _ in 200 }
         return container
     }
 

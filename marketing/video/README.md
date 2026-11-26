@@ -38,7 +38,7 @@ scripts/make-store-screenshots.sh
 ```
 
 1. Takes the same lock, boots the `iPhone 18 Pro Max` iOS 27.0 simulator (6.9-inch, 1320x2868 screenshots; override with `SIM_NAME` / `SIM_OS`) and pins the status bar to 9:41.
-2. Runs only `StoreCaptureUITests` from the `PulseCommitMarketing` scheme. With `-marketingDemo` it captures Home, History, Destinations, the Webhook screen after a stubbed test request (HTTP 200, no network) and Automate into `public/store/` (not committed).
+2. Runs only `StoreCaptureUITests` from the `PulseCommitMarketing` scheme. With `-marketingDemo` it captures Home, History, Destinations, the Webhook screen (endpoint, masked token, payload) and Automate into `public/store/` (not committed).
 3. Runs `npm run render:store`. The `StoreShot` still frames each capture in a phone with its kicker and caption at 1320x2868, converts it to RGB PNG without alpha and writes `marketing/screenshots/out/01-telegram.png` to `06-automate.png` (not committed). Screenshot 1 is the React Telegram scene from the hero video, so it is illustrative, not a capture.
 4. Writes the committed `marketing/screenshots/preview/contact-sheet.jpg` (under 400 KB) and fails if any PNG is not 1320x2868 or has alpha.
 
@@ -46,7 +46,7 @@ Captions and kickers live in `src/store.ts` and are covered by `npm test`. `--sk
 
 ## Demo data
 
-`-marketingDemo` is read only in Debug builds (`PulseCommit/Marketing/MarketingDemo.swift` is wrapped in `#if DEBUG`, and so is the seam in `AppContainer.shared`). It builds an in-memory container with no Keychain, HealthKit or network access: six fake categories, three stub sinks (GitHub, Telegram and a webhook at the synthetic host `agent.example.net`) that sleep and return fixed references, seeded History rows (the three most recent include the webhook), a stubbed webhook test request that returns HTTP 200, and a throwaway `UserDefaults` suite. The Telegram scene is drawn in React and uses the same numbers (12 483 steps, 642 kcal, 7h 31m sleep, HRV 47 ms).
+`-marketingDemo` is read only in Debug builds (`PulseCommit/Marketing/MarketingDemo.swift` is wrapped in `#if DEBUG`, and so is the seam in `AppContainer.shared`). It builds an in-memory container with no Keychain, HealthKit or network access: six fake categories, three stub sinks (GitHub, Telegram and a webhook at the synthetic host `agent.example.net`) that sleep and return fixed references, seeded History rows (the three most recent include the webhook) and a throwaway `UserDefaults` suite. The Telegram scene is drawn in React and uses the same numbers (12 483 steps, 642 kcal, 7h 31m sleep, HRV 47 ms).
 
 ## Storyboard
 

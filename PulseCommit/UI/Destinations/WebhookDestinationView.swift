@@ -14,7 +14,7 @@ struct WebhookDestinationView: View {
     }
 
     @EnvironmentObject var container: AppContainer
-    private let sendTestRequest: TestSender?
+    private let sendTestRequest: TestSender
     private let initialScrollAnchor: String?
 
     @State private var endpoint = ""
@@ -35,7 +35,7 @@ struct WebhookDestinationView: View {
         initialDraft: WebhookSettingsDraft? = nil,
         initialTestStatus: TestStatus = .idle,
         initialScrollAnchor: String? = nil,
-        sendTest: TestSender? = nil
+        sendTest: @escaping TestSender = WebhookDestinationView.liveSendTest
     ) {
         self.sendTestRequest = sendTest
         _testStatus = State(initialValue: initialTestStatus)
@@ -405,7 +405,7 @@ struct WebhookDestinationView: View {
         Task { @MainActor in
             await persist(submitted)
             do {
-                let status = try await (sendTestRequest ?? container.webhookTestSender)(configuration, Self.appVersion)
+                let status = try await sendTestRequest(configuration, Self.appVersion)
                 guard draft == submitted else { return }
                 testStatus = .delivered(host: configuration.host, statusCode: status)
             } catch {

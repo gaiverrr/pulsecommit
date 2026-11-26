@@ -20,7 +20,7 @@ export const STORE_SHOTS: StoreShot[] = [
   { slug: "history", screen: "store-history", kicker: "$ git log --oneline", title: "One commit per day, in your own repo" },
   { slug: "home", screen: "store-home", kicker: "$ pulse commit --since=today", title: "Export now, or let Shortcuts run it" },
   { slug: "destinations", screen: "store-destinations", kicker: "$ pulse remote -v", title: "Telegram, GitHub and your webhook" },
-  { slug: "automate", screen: "store-automate", kicker: "$ shortcuts run \"Export Today\"", title: "Today at 21:00 or yesterday at 08:30" },
+  { slug: "automate", screen: "store-automate", kicker: "$ shortcuts run \"Export Health Data\"", title: "Today at 21:00 or yesterday at 08:30" },
 ];
 
 export const CAPTURED_SCREENS = STORE_SHOTS.map((s) => s.screen).filter((s) => s !== "telegram");

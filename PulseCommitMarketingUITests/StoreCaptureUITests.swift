@@ -25,10 +25,10 @@ final class StoreCaptureUITests: XCTestCase {
         capture("store-destinations")
 
         app.staticTexts["agent.example.net"].tap()
-        let sendTest = app.buttons["Send test (no Health data)"]
-        XCTAssertTrue(sendTest.waitForExistence(timeout: 10))
-        sendTest.tap()
-        XCTAssertTrue(app.staticTexts["webhook.testStatus"].waitForExistence(timeout: 10))
+        let endpoint = app.textFields["webhook.endpoint"]
+        XCTAssertTrue(endpoint.waitForExistence(timeout: 10))
+        let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value CONTAINS 'agent.example.net'"), object: endpoint)
+        XCTAssertEqual(XCTWaiter().wait(for: [loaded], timeout: 10), .completed)
         XCTAssertTrue(app.staticTexts["webhook.token"].isHittable)
         pause(1.5)
         capture("store-webhook")
