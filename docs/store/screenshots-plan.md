@@ -6,24 +6,26 @@ Apple accepts one to 10 screenshots per device-size group in JPEG or PNG, withou
 
 Primary reference: [Apple — Screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications).
 
-## Proposed six-image story
+## 1.0.2 six-image set (automated)
 
-These labels describe capture intent and filenames. App Store Connect has no per-screenshot Caption field. Do not paste these labels into nonexistent metadata fields.
+`scripts/make-store-screenshots.sh` builds the whole set from a clean checkout after `cd marketing/video && npm ci`. Nobody edits images by hand. See `marketing/video/README.md` for the steps. Output: `marketing/screenshots/out/*.png` (not committed), 1320 × 2868, RGB without alpha, plus the committed `marketing/screenshots/preview/contact-sheet.jpg`.
 
-1. `01-home-setup.png` — first-export Home state showing Health permissions and Telegram recommended / GitHub optional.
-2. `02-telegram-setup.png` — Telegram setup with the visible target and sample message in Test Delivery; the bot token must remain masked.
-3. `03-export-consent.png` — destination-specific Health export disclosure with target, categories, formats, readers, retention, and deletion limits visible.
-4. `04-home-ready.png` — configured Home screen with the current Export Now action and period selector.
-5. `05-history.png` — History rendered through the actual candidate UI with clearly controlled demo data; keep live destination verification as separate evidence.
-6. `06-automate.png` — Automate with its Today / Yesterday distinction and locked-phone warning.
+| File | Kicker | Caption | Screen |
+| --- | --- | --- | --- |
+| `01-telegram.png` | `> telegram` | Apple Health, every evening, to your AI agent | Telegram chat drawn in React (illustrative, not a capture) |
+| `02-webhook.png` | `$ pulse remote add webhook` | POST to any endpoint you own | Webhook screen: endpoint, masked token, payload |
+| `03-history.png` | `$ git log --oneline` | One commit per day, in your own repo | History |
+| `04-home.png` | `$ pulse commit --since=today` | Export now, or let Shortcuts run it | Home, Export Now |
+| `05-destinations.png` | `$ pulse remote -v` | Telegram, GitHub and your webhook | Destinations, three configured |
+| `06-automate.png` | `$ shortcuts run "Export Health Data"` | Today at 21:00 or yesterday at 08:30 | Automate |
 
-The final set may contain one to 10 images. Keep only screens captured from reachable release-candidate UI. Controlled demo data is acceptable when it is rendered through the real app and recorded as screenshot preparation; it is not proof of live destination delivery or a real Health export.
+Captions 1-3 come from the 1.0.2 design canvas. Captions 4-6 and all kickers were written for this set. App screens 2-6 are captured from the Debug app with the `-marketingDemo` seam: synthetic data, the synthetic host `agent.example.net` and a fake token. They are screenshot preparation, not evidence of live delivery or a real Health export.
 
 ## Capture target
 
 - Preferred group: iPhone 6.9-inch display.
-- Available capture simulator verified 2026-09-23: iPhone 17 Pro Max on iOS 26.4 or 26.5. There is no iPhone 17 Pro Max device in the installed iOS 27.0 runtime.
-- Expected portrait size for that simulator: `1320 × 2868` pixels. Apple also accepts other listed 6.9-inch sizes, so validate the produced file against the current Apple table rather than resizing blindly.
+- Capture simulator for the automated set: iPhone 18 Pro Max on iOS 27.0, which produces `1320 × 2868` captures.
+- Expected portrait size for the framed output: `1320 × 2868` pixels. Apple also accepts other listed 6.9-inch sizes, so validate the produced file against the current Apple table rather than resizing blindly.
 - Format: PNG or JPEG, no alpha channel or transparency.
 - Orientation: portrait for this planned set.
 

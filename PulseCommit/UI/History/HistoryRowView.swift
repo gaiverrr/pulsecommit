@@ -36,8 +36,25 @@ struct HistoryRowView: View {
     }
 
     private var sinkRow: some View {
+        Group {
+            if model.sinkBadges.count > 1 {
+                ViewThatFits(in: .horizontal) {
+                    badgeLine(model.sinkBadges)
+                    VStack(alignment: .leading, spacing: 6) {
+                        badgeLine(Array(model.sinkBadges.dropLast()))
+                        badgeLine(Array(model.sinkBadges.suffix(1)))
+                    }
+                }
+            } else {
+                badgeLine(model.sinkBadges)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func badgeLine(_ badges: [HistoryRowModel.SinkBadge]) -> some View {
         HStack(spacing: 8) {
-            ForEach(Array(model.sinkBadges.enumerated()), id: \.offset) { _, badge in
+            ForEach(Array(badges.enumerated()), id: \.offset) { _, badge in
                 HStack(spacing: 6) {
                     sinkIcon(for: badge)
                     PCPill(
@@ -46,9 +63,10 @@ struct HistoryRowView: View {
                         foreground: badge.ok ? Theme.success : Theme.error,
                         background: Theme.elevated
                     )
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                 }
             }
-            Spacer()
         }
     }
 
