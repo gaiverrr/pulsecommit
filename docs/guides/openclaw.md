@@ -36,10 +36,10 @@ Sources: [Inbound webhooks](https://docs.openclaw.ai/automation/cron-jobs/webhoo
 3. The hook URL is `<your gateway address>/hooks/pulse-commit`. In Pulse Commit, open Destinations, Webhook, and enter that URL.
 4. Put the same token in the app. OpenClaw accepts `Authorization: Bearer <token>` (recommended) or `x-openclaw-token: <token>`. The query string `?token=...` is rejected. The app sends the Bearer header by default.
 5. The URL must be HTTPS with a publicly trusted certificate, because the app refuses plain HTTP and local network hosts ([spec, Transport](../specs/2026-11-26-webhook-destination.md)). How you expose the gateway (reverse proxy, tunnel) is up to you and not covered here.
-6. Body limit: the docs state the normal body limit is 1 MiB with a 30-second body-read timeout; larger bodies return `413`. The webhook payload omits raw samples to stay under it.
+6. Body limit: the [hooks config reference](https://docs.openclaw.ai/gateway/config-hooks) states the normal body limit is 1 MiB with a 30-second body-read timeout; larger bodies return `413`. The webhook payload omits raw samples to stay under it.
 7. Press Send test in the app. A `200` means accepted (for agent actions this is admission, not completion). `401` means a wrong token or a proxy that drops the auth header. `404` means hooks disabled, wrong path or no matching mapping.
 
-Sending the agent's reply to Telegram: the mapping keys `deliver`, `channel` and `to` are documented (direct channel delivery needs both `channel` and `to`; `channel: "last"` with a partial destination returns `400`). The exact `channel` value for Telegram and the `to` format for a group are not verified here. Check the [config reference](https://docs.openclaw.ai/gateway/config-hooks) before using them.
+Sending the agent's reply to Telegram: per the [hooks config reference](https://docs.openclaw.ai/gateway/config-hooks), a mapping's `deliver` defaults to `true`, `channel` defaults to `"last"` (a channel id or `"last"`), and `to` is an optional templated delivery target. The reference says to prefer an explicit `channel` and `to`, and defers partial targets to the delivery resolver. The `400` for `channel: "last"` or a partial destination on the [webhooks page](https://docs.openclaw.ai/automation/cron-jobs/webhooks) applies to direct `/hooks/agent` calls, not to mappings. The exact `channel` value for Telegram and the `to` format for a group are not verified here.
 
 ## B. Telegram group
 

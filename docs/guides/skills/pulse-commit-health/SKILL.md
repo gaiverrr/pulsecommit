@@ -12,7 +12,7 @@ Pulse Commit writes one commit per exported day to a GitHub repository the user 
 ## Layout
 
 ```
-<YYYY-MM-DD>/
+[<subdir>/]<YYYY-MM-DD>/
   summary.json      daily totals and averages, start here
   summary.md        the same day as readable text
   samples/*.json    raw samples per category (steps.json, heart_rate.json, sleep.json, ...)
@@ -24,12 +24,14 @@ The commit message looks like `chore: pulse 2026-08-28 · 10055 steps · 2 worko
 
 ## How to read it
 
-1. List the top-level folders and keep names that match `YYYY-MM-DD`. Sort them to find the latest day or a range.
-2. Read `<date>/summary.json` first. Fields:
-   - `schema_version`, `date`, `timezone`
-   - `metrics`: an object keyed by category, for example `steps.total`, `active_energy.total`, `resting_heart_rate.value`, `hrv_sdnn.avg`, `vo2_max.value`, `sleep.duration_minutes` with `stage_deep`, `stage_rem`, `stage_core`, `stage_awake`, `body_mass.value`. Each has a `unit`.
-   - `workouts`: a list with `type`, `duration_minutes`, `distance_km`, `active_energy_kcal`, `has_route`
+1. Find the date folders. The user can choose a subfolder in the app, so they may be at `<YYYY-MM-DD>/` or at `<subdir>/<YYYY-MM-DD>/`. Look for folder names matching `YYYY-MM-DD` at depth 0 to 2, then sort them to find the latest day or a range. All paths below are relative to the folder that holds the date folders.
+2. Read `<date>/summary.json` first. Top-level keys:
+   - `schema_version`, `date`, `timezone`, `generated_at`, `latest_sample_at` (optional)
+   - `device`, `app_version`
    - `unavailable_categories`: categories with no data that day
+   - `metrics`: an object keyed by category, for example `steps.total`, `active_energy.total`, `resting_heart_rate.value`, `hrv_sdnn.avg`, `vo2_max.value`, `sleep.duration_minutes` with `stage_deep`, `stage_rem`, `stage_core`, `stage_awake`, `body_mass.value`. The `unit` key sits once per category (next to its metrics), not on each metric.
+   - `workouts`: a list. Fields: `id`, `type`, `start_date`, `end_date`, `duration_minutes`, `duration_seconds`, `distance_km`, `distance_meters`, `average_pace_seconds_per_km`, `average_speed_kph`, `active_energy_kcal`, `avg_hr`, `max_hr`, `heart_rate_zones`, `recorded_intervals`, `has_route`. Several are optional and absent when not recorded.
+   - `state_of_mind`: a list of entries with `time`, `valence` and `labels`
 3. Use `summary.md` when you need to quote or show the day as text.
 4. Open `samples/<category>.json` only when the summary is not enough, for example to see heart rate over the day. Samples can be large; read one file at a time.
 5. For a workout, open `workouts/<id>-<type>.json`. Read `routes/<id>-<type>.gpx` only if `has_route` is true.
