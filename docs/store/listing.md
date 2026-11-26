@@ -69,7 +69,7 @@ PRICE
 
 Pulse Commit 1.0 is free. There is no export limit, in-app purchase, or subscription.
 
-If you don't have a GitHub account or a Telegram bot, this app is not for you. The destinations are yours; Pulse Commit does not host them.
+If you don't have a GitHub repo, a Telegram bot or your own HTTPS endpoint, this isn't for you. The destinations are yours; Pulse Commit does not host them.
 
 Requires iOS 17.0 or later. State of Mind export is available on iOS 18 or later.
 

@@ -26,7 +26,7 @@ Never edit the generated `.xcodeproj`; change `project.yml` and regenerate. To r
 
 ## Ground rules
 
-- **Privacy is load-bearing.** No analytics, crash reporters, ad SDKs or new outbound hosts. Production code may only contact `api.github.com`, the GitHub Device Flow endpoints on `github.com`, and `api.telegram.org`.
+- **Privacy is load-bearing.** No analytics, crash reporters, ad SDKs or new outbound hosts. Production code may only contact `api.github.com`, the GitHub Device Flow endpoints on `github.com`, `api.telegram.org`, and the HTTPS webhook URL the user enters. Never a server of ours.
 - **No new third-party dependencies** beyond ZIPFoundation without prior agreement.
 - **Health data is read-only.** No HealthKit write access.
 - **JSON schema changes are additive.** Every emitted JSON file carries `"schema_version": "1.0"`.
