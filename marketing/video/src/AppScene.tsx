@@ -93,21 +93,35 @@ const PressedCard: React.FC<{ frame: number }> = ({ frame }) => {
   const t = clamp01((frame - MARKS.exportTap) / 18);
   if (t <= 0 || t >= 1) return null;
   const scale = 1 - 0.035 * Math.sin(Math.PI * t);
-  const { x, y, w, h } = HOME.card;
+  const { x, y, w, h } = HOME.pressCrop;
+  const r = HOME.cardRadius;
   return (
     <>
-      <div style={{ position: "absolute", left: x - 4, top: y - 4, width: w + 8, height: h + 8, background: "#0a0a0a" }} />
-      <Crop name="01-home-idle" x={x} y={y} w={w} h={h} style={{ transform: `scale(${scale})`, borderRadius: 66 }} />
+      <div style={{ position: "absolute", left: x - 1, top: y - 1, width: w + 2, height: h + 2, borderRadius: r + 1, background: HOME.cardHalo }} />
+      <Crop
+        name="01-home-idle"
+        x={x}
+        y={y}
+        w={w}
+        h={h}
+        style={{
+          transform: `scale(${scale})`,
+          borderRadius: r,
+          boxShadow: `0 0 ${HOME.glow}px ${HOME.cardHalo}`,
+        }}
+      />
     </>
   );
 };
 
 const ProgressBar: React.FC<{ frame: number }> = ({ frame }) => {
   const p = progressAt(frame);
-  const { x, y, w, h, track, fill } = HOME.progressTrack;
+  const { x, y, w, h, track, fill, bg } = HOME.progressTrack;
   return (
-    <div style={{ position: "absolute", left: x, top: y, width: w, height: h, background: track, borderRadius: h / 2 }}>
-      <div style={{ width: w * p, height: h, background: fill, borderRadius: h / 2 }} />
+    <div style={{ position: "absolute", left: x - 1, top: y - 2, width: w + 2, height: h + 4, background: bg }}>
+      <div style={{ position: "absolute", left: 1, top: 2, width: w, height: h, background: track, borderRadius: h / 2 }}>
+        <div style={{ width: w * p, height: h, background: fill, borderRadius: h / 2 }} />
+      </div>
     </div>
   );
 };
@@ -121,7 +135,7 @@ const runningShot = (frame: number): { from: ShotName; to: ShotName; mix: number
 
 const HomeFlow: React.FC<{ frame: number }> = ({ frame }) => {
   if (frame < 250) {
-    const idle = 1 - fade(frame, 72, 6);
+    const idle = frame < MARKS.runningShots[0] ? 1 : 0;
     const running = runningShot(frame);
     return (
       <>
@@ -145,6 +159,7 @@ const HomeFlow: React.FC<{ frame: number }> = ({ frame }) => {
   return (
     <>
       <Shot name="04-home-running-c" />
+      <ProgressBar frame={frame} />
       <div style={{ ...full, opacity: fade(frame, 250, 8) }}>
         <Shot name="05-home-done" />
         <StaggerRows

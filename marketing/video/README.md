@@ -4,6 +4,8 @@ A 10-second, 60 fps looping animation for the pulsecommit.app hero. Everything i
 
 ## One command
 
+Requires Node 22.18 or later (`engines` in `package.json`): tests and scripts import `.ts` files directly through Node's built-in type stripping, which needs no flag from 22.18.
+
 ```bash
 cd marketing/video && npm ci && cd ../..
 scripts/make-hero-video.sh
@@ -12,9 +14,10 @@ scripts/make-hero-video.sh
 The script:
 
 1. Takes the shared `/tmp/pulsecommit-xcodebuild.lock`, runs `xcodegen generate`, boots the `iPhone 18 Pro` iOS 27.0 simulator (override with `SIM_NAME` / `SIM_OS`) and pins the status bar to 9:41.
-2. Runs the `PulseCommitMarketing` scheme. `HeroCaptureUITests` launches the Debug app with `-marketingDemo -onboarding_completed YES`, taps Export, opens History and saves six full-resolution screenshots as XCTest attachments.
+2. Runs the `PulseCommitMarketing` scheme. `HeroCaptureUITests` launches the Debug app with `-marketingDemo -onboarding_completed YES`, taps Export, opens History and saves six full-resolution screenshots as XCTest attachments, plus `frames.json` with the pixel frames of the Export button, the period chip row, the History tab and the commit hash of each recent commit row for each screenshot.
 3. Exports them from the `.xcresult` with `xcrun xcresulttool export attachments` into `public/screens/`. These are generated, so they are not committed.
-4. Runs `npm run render`, which type-checks, renders `HeroLoop` (1080x1920) and `HeroLoopWide` (1440x1080) with Remotion, then encodes with ffmpeg. The CRF starts at 23 for H.264 and 34 for VP9 and goes up until each file is at most 1.5 MB (`HERO_MAX_BYTES`).
+4. Runs `node scripts/measure.mjs`, which reads `frames.json` and the captures and rewrites `src/capture-layout.ts`: the big button from the lime pixels of the idle capture, the progress bar (hidden from accessibility, so found by pixel scan) from whichever running capture shows the widest fill, and the recent commits card and rows anchored to the exported commit hash frames and split at the dividers between them. If the rewritten file differs from the committed one (`git diff --exit-code`), the script prints `capture-layout.ts updated; review and commit it`, still renders, and then exits non-zero, so an outdated committed layout never passes silently. Then it runs `npm test`, which fails if an overlay does not sit on the measured element or if `src/capture-layout.ts` does not match a fresh measurement of `public/screens/`.
+5. Runs `npm run render`, which type-checks, renders `HeroLoop` (1080x1920) and `HeroLoopWide` (1440x1080) with Remotion, then encodes with ffmpeg. The CRF starts at 23 for H.264 and 34 for VP9 and goes up until each file is at most 1.5 MB (`HERO_MAX_BYTES`).
 
 To re-render from existing screens without Xcode: `scripts/make-hero-video.sh --skip-capture`. To preview interactively: `npm run studio`.
 
@@ -60,7 +63,7 @@ Captions and kickers live in `src/store.ts` and are covered by `npm test`. `--sk
 | 404-562 | Telegram: summary with counting numbers and ZIP, typing indicator, agent reply |
 | 562-600 | Slide back to Home; frame 599 matches frame 0 |
 
-Frame ranges live in `src/timeline.ts` and are covered by `npm test`. Screen coordinates for overlays are in `src/layout.ts` and assume a 1206x2622 capture (iPhone 18 Pro). With another simulator, update that file.
+Frame ranges live in `src/timeline.ts` and are covered by `npm test`. Home overlay coordinates come from `src/capture-layout.ts`, generated from the capture, so a Home layout change only needs a re-run of the script. History row bands in `src/layout.ts` are still hand-measured for a 1206x2622 capture (iPhone 18 Pro).
 
 ## Licence
 

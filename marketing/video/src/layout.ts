@@ -1,17 +1,23 @@
-export const SCREEN = { width: 1206, height: 2622 };
+import { CAPTURE } from "./capture-layout.ts";
+import type { Rect } from "./measure.ts";
+
+export const SCREEN = CAPTURE.screen;
+
+const POINT = SCREEN.width / 402;
+
+const center = (r: Rect) => ({ x: Math.round(r.x + r.w / 2), y: Math.round(r.y + r.h / 2) });
 
 export const HOME = {
-  card: { x: 60, y: 525, w: 1086, h: 696 },
-  exportTap: { x: 603, y: 760 },
-  progressTrack: { x: 120, y: 920, w: 966, h: 9, track: "rgb(139,204,49)", fill: "#000" },
-  commitsArea: { x: 62, y: 1352, w: 1082, h: 734, bg: "#141414" },
-  commitRows: [
-    [1352, 1557],
-    [1557, 1719],
-    [1719, 1881],
-    [1881, 2086],
-  ],
-  historyTab: { x: 835, y: 2467 },
+  card: CAPTURE.card,
+  pressCrop: CAPTURE.card,
+  cardRadius: Math.round(22 * POINT),
+  cardHalo: CAPTURE.cardHalo,
+  glow: Math.round(24 * POINT),
+  exportTap: center(CAPTURE.topZone),
+  progressTrack: { ...CAPTURE.bar, fill: "#000" },
+  commitsArea: CAPTURE.commitsArea,
+  commitRows: CAPTURE.commitRows.map((r) => [r.y, r.y + r.h]),
+  historyTab: center(CAPTURE.historyTab),
 };
 
 export const HISTORY = {
