@@ -127,6 +127,10 @@ struct DestinationsView: View {
         return webhookReady ? Theme.success : Theme.warn
     }
 
+    static func toggleIsOn(configured: Bool, enabled: Bool) -> Bool {
+        configured && enabled
+    }
+
     private enum RowIcon {
         case system(String)
         case asset(String)
@@ -188,7 +192,7 @@ struct DestinationsView: View {
                     .tracking(1.2)
                     .foregroundStyle(statusColor)
                 PCToggle(accessibilityLabel: "\(title) export", isOn: Binding(
-                    get: { enabled.wrappedValue },
+                    get: { Self.toggleIsOn(configured: configured, enabled: enabled.wrappedValue) },
                     set: { newValue in
                         enabled.wrappedValue = newValue
                         onToggle(newValue)
