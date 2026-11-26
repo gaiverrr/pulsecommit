@@ -18,6 +18,10 @@ struct HealthExportConsentSheet: View {
                         .font(.pcTitle)
                         .foregroundStyle(Theme.text)
 
+                    if !disclosure.webhookNotice.isEmpty {
+                        webhookNotice
+                    }
+
                     PCCard {
                         VStack(alignment: .leading, spacing: 14) {
                             row("DESTINATION", disclosure.target, monospaced: true)
@@ -25,10 +29,12 @@ struct HealthExportConsentSheet: View {
                             row("CATEGORIES", disclosure.categorySummary, monospaced: true)
                             Divider().background(Theme.divider)
                             row("FORMATS", disclosure.formats)
-                            Divider().background(Theme.divider)
-                            row("WHO MAY READ IT", disclosure.readers)
-                            Divider().background(Theme.divider)
-                            row("RETENTION", disclosure.retention)
+                            if disclosure.webhookNotice.isEmpty {
+                                Divider().background(Theme.divider)
+                                row("WHO MAY READ IT", disclosure.readers)
+                                Divider().background(Theme.divider)
+                                row("RETENTION", disclosure.retention)
+                            }
                             Divider().background(Theme.divider)
                             row("DISABLE / DELETE", disclosure.deletion)
                         }
@@ -52,6 +58,26 @@ struct HealthExportConsentSheet: View {
             .background(Theme.bg.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
         }
+    }
+
+    private var webhookNotice: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(disclosure.webhookNotice.enumerated()), id: \.offset) { index, paragraph in
+                paragraphText(paragraph, emphasizing: index == 0 ? disclosure.target : nil)
+                    .font(.pcBodySmall)
+                    .foregroundStyle(Theme.text)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityIdentifier("consent.webhook.notice")
+    }
+
+    private func paragraphText(_ paragraph: String, emphasizing host: String?) -> Text {
+        guard let host, let range = paragraph.range(of: host) else { return Text(verbatim: paragraph) }
+        let before = Text(verbatim: String(paragraph[..<range.lowerBound]))
+        let emphasized = Text(verbatim: host).font(.pcMonoDetail.weight(.semibold))
+        let after = Text(verbatim: String(paragraph[range.upperBound...]))
+        return Text("\(before)\(emphasized)\(after)")
     }
 
     private func row(_ title: String, _ value: String, monospaced: Bool = false) -> some View {

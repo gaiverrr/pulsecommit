@@ -150,7 +150,7 @@ struct SettingsView: View {
     private func performReset() async {
         container.prepareForReset()
         let secrets = container.secrets
-        for key in [KeychainTokenVault.storageKey, "tg_bot_token", "tg_chat_id"] {
+        for key in AppContainer.resettableSecretKeys {
             try? await secrets.set(nil, for: key)
         }
         container.preferences.reset()

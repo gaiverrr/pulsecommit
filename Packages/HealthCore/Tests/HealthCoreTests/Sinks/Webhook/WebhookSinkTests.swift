@@ -132,6 +132,18 @@ final class WebhookSinkTests: XCTestCase {
         XCTAssertNotEqual(WebhookMockTransport.captured.first?.value(forHTTPHeaderField: "Idempotency-Key"), keys[0])
     }
 
+    func test_deliverDailyReportsStatusAndKey() async throws {
+        WebhookMockTransport.reset([ok(202)])
+        let sink = try makeSink()
+
+        let delivery = try await sink.deliverDaily(snapshot: makeSnapshot(), files: makeFiles(), onAttempt: nil)
+
+        let request = try XCTUnwrap(WebhookMockTransport.captured.first)
+        XCTAssertEqual(delivery.statusCode, 202)
+        XCTAssertEqual(delivery.idempotencyKey, request.value(forHTTPHeaderField: "Idempotency-Key"))
+        XCTAssertEqual(sink.host, "hooks.example.com")
+    }
+
     func test_any2xxSucceeds() async throws {
         for status in [200, 202, 204] {
             WebhookMockTransport.reset([ok(status)])
@@ -333,6 +345,14 @@ final class WebhookSinkTests: XCTestCase {
         let task = URLSession.shared.dataTask(with: endpoint)
         let next = await blocker.urlSession(.shared, task: task, willPerformHTTPRedirection: response, newRequest: URLRequest(url: URL(string: "https://elsewhere.example.net")!))
         XCTAssertNil(next)
+    }
+
+    func test_transportFailuresUsePlainWording() {
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1009).localizedDescription, "No internet connection (-1009)")
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1001).localizedDescription, "The endpoint did not respond in 30 seconds (-1001)")
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1202).localizedDescription, "The endpoint's HTTPS certificate is not trusted (-1202)")
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1200).localizedDescription, "The endpoint's HTTPS certificate is not trusted (-1200)")
+        XCTAssertEqual(WebhookSinkError.transportFailure(code: -1004).localizedDescription, "Network error (-1004)")
     }
 
     func test_errorDescriptionsNeverContainSecrets() {

@@ -24,6 +24,7 @@ final class PreferencesStore {
         static let githubInstallationId = "pulse-commit.github.installationId"
         static let githubExportEnabled = "pulse_commit.github.export_enabled"
         static let telegramExportEnabled = "pulse_commit.telegram.export_enabled"
+        static let webhookExportEnabled = "pulse_commit.webhook.export_enabled"
         static let automaticWorkoutTelegramEnabled = "pulse_commit.telegram.automatic_workouts_enabled"
         static let automaticWorkoutRegistrationFailed = "pulse_commit.telegram.automatic_workouts_registration_failed"
         static let selectedPeriod = "pulse_commit.home.selected_period"
@@ -170,6 +171,7 @@ final class PreferencesStore {
             Key.githubInstallationId,
             Key.githubExportEnabled,
             Key.telegramExportEnabled,
+            Key.webhookExportEnabled,
             Key.automaticWorkoutTelegramEnabled,
             Key.automaticWorkoutRegistrationFailed,
             Key.selectedPeriod,
@@ -229,6 +231,19 @@ final class PreferencesStore {
         set {
             if newValue == false { consentStore?.invalidate(.github) }
             defaults.set(newValue, forKey: Key.githubExportEnabled)
+        }
+    }
+
+    var webhookExportEnabled: Bool {
+        get {
+            if defaults.object(forKey: Key.webhookExportEnabled) == nil {
+                return true
+            }
+            return defaults.bool(forKey: Key.webhookExportEnabled)
+        }
+        set {
+            if newValue == false { consentStore?.invalidate(.webhook) }
+            defaults.set(newValue, forKey: Key.webhookExportEnabled)
         }
     }
 
