@@ -487,12 +487,10 @@ enum WebhookTokenFormatting {
             "  \"schema_version\": \"1.0\",",
             "  \"event_type\": \"daily_export\",",
             "  \"date\": \"2026-11-23\",",
-            "  \"idempotency_key\": \"pc-2026-11-23-3f9a1c0b7e2d\",",
+            "  \"idempotency_key\": \"pc-2026-11-23-…\",",
             "  \"summary\": { …summary.json… },",
-            "  \"summary_markdown\": \"…summary.md…\",",
-            "  \"files\": [",
-            "    { \"path\": \"samples/steps.json\", \"bytes\": 1234 }",
-            "  ]",
+            "  \"summary_markdown\": \"…\",",
+            "  \"files\": [{ \"path\": …, \"bytes\": … }]",
             "}"
         ])
         return lines.joined(separator: "\n")
