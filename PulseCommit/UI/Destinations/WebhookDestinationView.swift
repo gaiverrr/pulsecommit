@@ -429,7 +429,12 @@ struct WebhookDestinationView: View {
     }
 
     private func persistIfValid() {
-        guard loaded, validatedConfiguration != nil else { return }
+        guard loaded else { return }
+        if endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Task { @MainActor in await container.clearWebhookSettings() }
+            return
+        }
+        guard validatedConfiguration != nil else { return }
         let submitted = draft
         Task { @MainActor in await persist(submitted) }
     }

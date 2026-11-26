@@ -682,6 +682,31 @@ final class OrchestratorTests: XCTestCase {
         XCTAssertEqual(try history.recentEntries(limit: 1).first?.errorKind, HistoryErrorKind.consentRequired)
     }
 
+    func test_webhookReferenceIsStoredInHistory() async throws {
+        let now = iso("2026-04-10T12:00:00Z")
+        let history = try HistoryStore.inMemory()
+        let webhook = RecordingSink(id: "webhook", reference: "hooks.example.com · HTTP 202")
+        let orchestrator = Orchestrator(
+            windowResolver: ExportWindowResolver(timezone: timezone),
+            pipeline: makePipeline(clockDate: now),
+            sinks: [webhook],
+            historyStore: history,
+            clock: { now }
+        )
+
+        let status = await orchestrator.run(ExportRequest(
+            mode: .lastDayOnly,
+            enabledCategoryIds: ["steps"],
+            enabledSinkIds: ["webhook"]
+        ))
+
+        XCTAssertEqual(status, .success)
+        let entry = try XCTUnwrap(try history.recentEntries(limit: 1).first)
+        XCTAssertEqual(entry.sinks, ["webhook"])
+        XCTAssertEqual(entry.webhookReference, "hooks.example.com · HTTP 202")
+        XCTAssertNil(entry.telegramMessageReference)
+    }
+
     func test_lastDayOnly_recordsSuccess_andAdvancesCursor() async throws {
         let now = iso("2026-04-10T12:00:00Z")
         let pipeline = makePipeline(clockDate: now)
