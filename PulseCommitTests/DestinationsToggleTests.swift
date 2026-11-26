@@ -1,5 +1,6 @@
 import XCTest
 import SwiftUI
+import UIKit
 @testable import PulseCommit
 
 @MainActor
@@ -69,5 +70,91 @@ final class DestinationsToggleTests: XCTestCase {
         let view = DestinationsView(path: path).environmentObject(container)
         XCTAssertNotNil(view)
         XCTAssertFalse(container.preferences.githubExportEnabled)
+    }
+
+    func test_toggleBinding_unconfiguredReadsOffEvenWhenPreferenceIsOn() {
+        var stored = true
+        let enabled = Binding<Bool>(get: { stored }, set: { stored = $0 })
+        let binding = DestinationsView.toggleBinding(configured: false, enabled: enabled, onToggle: { _ in })
+        XCTAssertFalse(binding.wrappedValue)
+        XCTAssertTrue(stored)
+    }
+
+    func test_toggleBinding_configuredReadsPreference() {
+        var stored = true
+        let enabled = Binding<Bool>(get: { stored }, set: { stored = $0 })
+        let binding = DestinationsView.toggleBinding(configured: true, enabled: enabled, onToggle: { _ in })
+        XCTAssertTrue(binding.wrappedValue)
+        stored = false
+        XCTAssertFalse(binding.wrappedValue)
+    }
+
+    func test_toggleBinding_setterWritesThroughAndNotifies() {
+        var stored = true
+        var notified: [Bool] = []
+        let enabled = Binding<Bool>(get: { stored }, set: { stored = $0 })
+        let binding = DestinationsView.toggleBinding(configured: true, enabled: enabled, onToggle: { notified.append($0) })
+        binding.wrappedValue = false
+        XCTAssertFalse(stored)
+        XCTAssertEqual(notified, [false])
+    }
+
+    func test_unconfiguredRow_leavesStoredPreferenceUntouched() async throws {
+        let preferences = PreferencesStore(defaults: ephemeralDefaults())
+        let healthStore = HealthStoreClient()
+        let container = AppContainer(
+            secrets: InMemorySecretsStore(),
+            preferences: preferences,
+            history: try HistoryStore.inMemory(),
+            healthStore: healthStore,
+            registry: DefaultRegistryFactory.make(store: healthStore),
+            orchestratorFactory: { _ in fatalError("not used in this test") }
+        )
+        let path = Binding<[RootTabView.DestinationsRoute]>(get: { [] }, set: { _ in })
+        let host = UIHostingController(rootView: DestinationsView(path: path).environmentObject(container))
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        try await Task.sleep(nanoseconds: 500_000_000)
+        XCTAssertTrue(preferences.githubExportEnabled)
+        XCTAssertTrue(preferences.telegramExportEnabled)
+        XCTAssertTrue(preferences.webhookExportEnabled)
+    }
+
+    func test_renderDestinationsWithConfiguredAndUnconfiguredRows() async throws {
+        let preferences = PreferencesStore(defaults: ephemeralDefaults())
+        let secrets = InMemorySecretsStore()
+        try await secrets.set("123456:ABCDEF", for: "tg_bot_token")
+        try await secrets.set("-1001234567890", for: "tg_chat_id")
+        let healthStore = HealthStoreClient()
+        let container = AppContainer(
+            secrets: secrets,
+            preferences: preferences,
+            history: try HistoryStore.inMemory(),
+            healthStore: healthStore,
+            registry: DefaultRegistryFactory.make(store: healthStore),
+            orchestratorFactory: { _ in fatalError("not used in this test") }
+        )
+        let frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        let host = UIHostingController(rootView: DestinationsView(path: .constant([]))
+            .environmentObject(container)
+            .preferredColorScheme(.dark))
+        let window = UIWindow(frame: frame)
+        window.windowLevel = .alert + 1
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        try await Task.sleep(nanoseconds: 800_000_000)
+
+        let image = UIGraphicsImageRenderer(size: frame.size).image { _ in
+            host.view.drawHierarchy(in: frame, afterScreenUpdates: true)
+        }
+        let png = try XCTUnwrap(image.pngData())
+        XCTAssertGreaterThan(png.count, 10_000)
+        let attachment = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
+        attachment.name = "destinations-toggle-state"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }
