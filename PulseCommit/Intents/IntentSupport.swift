@@ -23,6 +23,8 @@ enum DestinationOption: String, AppEnum {
     case both
     case githubOnly
     case telegramOnly
+    case webhookOnly
+    case allEnabled
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation {
         TypeDisplayRepresentation(name: "Destination")
@@ -31,7 +33,9 @@ enum DestinationOption: String, AppEnum {
     static let caseDisplayRepresentations: [DestinationOption: DisplayRepresentation] = [
         .both: "Both",
         .githubOnly: "GitHub only",
-        .telegramOnly: "Telegram only"
+        .telegramOnly: "Telegram only",
+        .webhookOnly: "Webhook only",
+        .allEnabled: "All configured destinations"
     ]
 
     var sinkIds: Set<String> {
@@ -39,6 +43,8 @@ enum DestinationOption: String, AppEnum {
         case .both: return ["github", "telegram"]
         case .githubOnly: return ["github"]
         case .telegramOnly: return ["telegram"]
+        case .webhookOnly: return [WebhookDestinationSink.sinkID]
+        case .allEnabled: return ["github", "telegram", WebhookDestinationSink.sinkID]
         }
     }
 }
@@ -46,6 +52,7 @@ enum DestinationOption: String, AppEnum {
 enum IntentError: Error, CustomLocalizedStringResourceConvertible {
     case noCategoriesEnabled
     case noDestinationsConfigured
+    case webhookNotConfigured
     case invalidRange
     case consentRequired
     case limitedHealthHistory(String)
@@ -57,7 +64,9 @@ enum IntentError: Error, CustomLocalizedStringResourceConvertible {
         case .noCategoriesEnabled:
             return "No categories enabled. Open Pulse Commit and enable at least one category."
         case .noDestinationsConfigured:
-            return "No destinations configured. Connect GitHub or Telegram in Pulse Commit."
+            return "No destinations configured. Connect GitHub, Telegram or a Webhook in Pulse Commit."
+        case .webhookNotConfigured:
+            return "Set up the Webhook destination in Pulse Commit first."
         case .invalidRange:
             return "Invalid date range. 'From' must be earlier than 'To', within the last 365 days."
         case .consentRequired:
@@ -122,6 +131,9 @@ enum IntentRunner {
             sinks = configured
         }
         if sinks.isEmpty {
+            if sinkFilter == [WebhookDestinationSink.sinkID] {
+                throw IntentError.webhookNotConfigured
+            }
             throw IntentError.noDestinationsConfigured
         }
         let categories = container.preferences.enabledCategoryIds
