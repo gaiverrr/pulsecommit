@@ -42,7 +42,14 @@ extension AppContainer {
     /// All call sites (`PulseCommitApp.body`, `IntentRunner.run`) already
     /// hop to MainActor; isolating the storage makes that invariant
     /// enforceable by the compiler.
-    @MainActor static let shared: AppContainer = .makeDefault()
+    @MainActor static let shared: AppContainer = {
+        #if DEBUG
+        if MarketingDemo.isRequested() {
+            return MarketingDemo.makeContainer()
+        }
+        #endif
+        return .makeDefault()
+    }()
 
     @MainActor static func makeDefault() -> AppContainer {
         // First-launch keychain cleanup is dispatched OFF the main actor by

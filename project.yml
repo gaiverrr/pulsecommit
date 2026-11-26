@@ -126,7 +126,34 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GCC_TREAT_WARNINGS_AS_ERRORS: NO
 
+  PulseCommitMarketingUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PulseCommitMarketingUITests
+    dependencies:
+      - target: PulseCommit
+    settings:
+      base:
+        TEST_TARGET_NAME: PulseCommit
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+        GCC_TREAT_WARNINGS_AS_ERRORS: NO
+        TARGETED_DEVICE_FAMILY: "1"
+
 schemes:
+  PulseCommitMarketing:
+    build:
+      targets:
+        PulseCommit: all
+        PulseCommitMarketingUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - PulseCommitMarketingUITests
+    run:
+      config: Debug
   PulseCommit:
     build:
       targets:
