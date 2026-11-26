@@ -19,7 +19,7 @@ const Caption: React.FC<{ frame: number; align: "center" | "left"; titleSize: nu
       <div style={{ fontFamily: font.mono, fontSize: titleSize * 0.48, color: color.accent, marginBottom: titleSize * 0.32 }}>
         {caption.kicker}
       </div>
-      <div style={{ fontFamily: font.ui, fontWeight: 700, fontSize: titleSize, lineHeight: 1.12, color: color.text, letterSpacing: -1 }}>
+      <div style={{ fontFamily: font.ui, fontWeight: 800, fontSize: titleSize, lineHeight: 1.12, color: color.text, letterSpacing: -1 }}>
         {caption.title}
       </div>
     </div>

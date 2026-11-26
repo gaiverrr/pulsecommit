@@ -1,6 +1,7 @@
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
+import "@fontsource/inter/800.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/600.css";
 
@@ -29,6 +30,7 @@ export const fontFaces = [
   "400 40px Inter",
   "600 40px Inter",
   "700 40px Inter",
+  "800 40px Inter",
   "400 40px 'JetBrains Mono'",
   "600 40px 'JetBrains Mono'",
 ];

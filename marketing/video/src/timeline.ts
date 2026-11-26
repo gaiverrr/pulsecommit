@@ -44,9 +44,9 @@ export const MARKS = {
 };
 
 export const CAPTIONS = [
-  { kicker: "$ pulse commit --since=today", title: "One tap exports today's Health data." },
-  { kicker: "$ git log --oneline", title: "Each export is one commit in your repo." },
-  { kicker: "> telegram", title: "Your AI agent reads the summary." },
+  { kicker: "$ pulse commit --since=today", title: "Reads only the categories you picked" },
+  { kicker: "$ git log --oneline", title: "Telegram, GitHub or your webhook" },
+  { kicker: "> telegram", title: "A summary your agent can read" },
 ];
 
 const CAPTION_SWITCHES = [

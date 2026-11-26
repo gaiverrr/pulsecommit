@@ -2,7 +2,8 @@ import { SCREEN } from "./layout";
 import { color, font } from "./theme";
 import { MARKS, PERIODS, clamp01, countUp, easeOut, formatInt } from "./timeline";
 
-const AGENT = "#00D26A";
+const tg = { bg: "#17212b", bubble: "#182533", link: "#6ab2f2", dim: "#708499" };
+const AGENT = tg.link;
 
 const appear = (frame: number, at: number, length = 16) => easeOut(clamp01((frame - at) / length));
 
@@ -50,10 +51,10 @@ const Header: React.FC<{ typing: boolean }> = ({ typing }) => (
       fontFamily: font.ui,
     }}
   >
-    <span style={{ color: color.accent, fontSize: 50, width: 260 }}>‹ Chats</span>
+    <span style={{ color: tg.link, fontSize: 50, width: 260 }}>‹ Chats</span>
     <div style={{ flex: 1, textAlign: "center" }}>
       <div style={{ color: color.text, fontSize: 50, fontWeight: 600 }}>Health log</div>
-      <div style={{ color: typing ? AGENT : color.dim, fontSize: 38, marginTop: 6 }}>
+      <div style={{ color: typing ? AGENT : tg.dim, fontSize: 38, marginTop: 6 }}>
         {typing ? "Health agent is typing" : "3 members"}
       </div>
     </div>
@@ -124,7 +125,7 @@ const Bubble: React.FC<{
     {avatar}
     <div
       style={{
-        background: color.elevated,
+        background: tg.bubble,
         border: `3px solid ${color.hairline}`,
         borderRadius: "44px 44px 44px 12px",
         padding: "30px 40px 26px",
@@ -225,21 +226,40 @@ const TypingDots: React.FC<{ frame: number }> = ({ frame }) => (
   </div>
 );
 
-const Reply: React.FC = () => (
-  <div style={{ fontFamily: font.ui, fontSize: 46, lineHeight: 1.36, color: color.text, width: 880 }}>
-    <span style={{ fontFamily: font.mono, color: color.accent }}>12 483</span> steps, 18% above your 7-day average.
-    Sleep <span style={{ fontFamily: font.mono, color: color.accent }}>7h 31m</span>, HRV{" "}
-    <span style={{ fontFamily: font.mono, color: color.accent }}>47 ms</span>: your usual range. An easy run tomorrow fits.
-    <div style={{ textAlign: "right", color: color.dim, fontSize: 30, marginTop: 10, fontFamily: font.mono }}>21:01</div>
-  </div>
-);
+const REPLY: { text: string; mono?: boolean }[] = [
+  { text: "12 483", mono: true },
+  { text: " steps, 18% above your 7-day average. Sleep " },
+  { text: "7h 31m", mono: true },
+  { text: ", HRV " },
+  { text: "47 ms", mono: true },
+  { text: ": your usual range. An easy run tomorrow fits." },
+];
+
+const Reply: React.FC<{ frame: number }> = ({ frame }) => {
+  let budget = Math.max(0, Math.floor((frame - MARKS.replyIn) / 2.5)) + 1;
+  return (
+    <div style={{ fontFamily: font.ui, fontSize: 46, lineHeight: 1.36, color: color.text, width: 880, minHeight: 320 }}>
+      {REPLY.map((part, i) => {
+        const words = part.text.split(/(?<= )/);
+        const shown = part.mono ? (budget > 0 ? part.text : "") : words.slice(0, budget).join("");
+        budget -= part.mono ? 1 : words.length;
+        return (
+          <span key={i} style={part.mono ? { fontFamily: font.mono, color: color.accent } : undefined}>
+            {shown}
+          </span>
+        );
+      })}
+      <div style={{ textAlign: "right", color: tg.dim, fontSize: 30, marginTop: 10, fontFamily: font.mono }}>21:01</div>
+    </div>
+  );
+};
 
 export const TelegramScene: React.FC<{ frame: number; date: string }> = ({ frame, date }) => {
   const typing = frame >= MARKS.typingFrom && frame < MARKS.replyIn;
   const typingIn = appear(frame, MARKS.typingFrom, 10);
   const replyIn = appear(frame, MARKS.replyIn);
   return (
-    <div style={{ position: "absolute", inset: 0, width: SCREEN.width, height: SCREEN.height, background: color.bg }}>
+    <div style={{ position: "absolute", inset: 0, width: SCREEN.width, height: SCREEN.height, background: tg.bg }}>
       <StatusBar />
       <Header typing={typing} />
       <div
@@ -271,7 +291,7 @@ export const TelegramScene: React.FC<{ frame: number; date: string }> = ({ frame
       )}
       {frame >= MARKS.replyIn && (
         <Bubble sender="Health agent" senderColor={AGENT} avatar={<Avatar label="AI" bg={AGENT} />} top={1830} progress={replyIn}>
-          <Reply />
+          <Reply frame={frame} />
         </Bubble>
       )}
       <div

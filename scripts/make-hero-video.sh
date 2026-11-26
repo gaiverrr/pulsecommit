@@ -1,16 +1,4 @@
 #!/usr/bin/env bash
-#
-# make-hero-video.sh - capture app screens in the simulator and render the
-# pulsecommit.app hero loop.
-#
-#   scripts/make-hero-video.sh                 capture + render
-#   scripts/make-hero-video.sh --skip-capture  render from existing screens
-#
-# Outputs marketing/video/out/hero.mp4, hero.webm, hero-poster.jpg (1080x1920)
-# and the 1440x1080 crop hero-wide.mp4, hero-wide.webm, hero-wide-poster.jpg,
-# plus a one-frame-per-second strip for each (hero-strip.jpg, hero-wide-strip.jpg).
-#
-# Env: SIM_NAME (default "iPhone 18 Pro"), SIM_OS (default "27.0").
 
 set -euo pipefail
 

@@ -23,7 +23,9 @@ final class HeroCaptureUITests: XCTestCase {
         capture("03-home-running-b")
         pause(1.6)
         capture("04-home-running-c")
-        pause(4)
+        let finished = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isEnabled == true"), object: exportButton)
+        XCTAssertEqual(XCTWaiter().wait(for: [finished], timeout: 30), .completed)
+        pause(1.5)
         capture("05-home-done")
 
         app.tabBars.buttons["History"].tap()
