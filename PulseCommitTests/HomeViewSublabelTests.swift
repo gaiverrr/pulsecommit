@@ -57,6 +57,12 @@ final class HomeViewSublabelTests: XCTestCase {
         XCTAssertEqual(HomeView.subLabelAction(for: .running), SubLabelAction.none)
     }
 
+    func test_accessibilityHint_errorWithoutEntryKeepsReason() {
+        let vm = makeViewModelInPhase(.error(reason: "boom", entryId: nil))
+        let label = HomeView.computeButtonSubLabel(for: vm, periodSubLabel: "ignored")
+        XCTAssertEqual(HomeView.accessibilityHintText(for: vm, buttonSubLabel: label), "boom")
+    }
+
     func test_accessibilityHint_inErrorDoesNotRepeatReason() {
         let vm = makeViewModelInPhase(.error(reason: "boom", entryId: UUID()))
         let label = HomeView.computeButtonSubLabel(for: vm, periodSubLabel: "ignored")

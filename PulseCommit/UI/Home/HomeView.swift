@@ -638,7 +638,7 @@ struct HomeView: View {
         if case .running = viewModel.phase {
             return "Export in progress"
         }
-        if case .error = viewModel.phase {
+        if case .openEntry = subLabelAction(for: viewModel.phase) {
             return ""
         }
         return buttonSubLabel ?? ""
