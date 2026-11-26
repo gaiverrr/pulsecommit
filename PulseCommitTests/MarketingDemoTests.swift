@@ -11,10 +11,38 @@ final class MarketingDemoTests: XCTestCase {
         XCTAssertFalse(MarketingDemo.isRequested(arguments: ["PulseCommit", "-marketingDemoX"]))
     }
 
-    func test_container_hasBothDestinationsConfigured() async {
+    func test_container_hasAllThreeDestinationsConfigured() async {
         let container = MarketingDemo.makeContainer(stepDelay: .zero)
         let ids = await IntentRunner.configuredSinkIds(container)
-        XCTAssertEqual(ids, ["github", "telegram"])
+        XCTAssertEqual(ids, ["github", "telegram", "webhook"])
+    }
+
+    func test_container_webhookIsReadyWithSyntheticHost() async {
+        let container = MarketingDemo.makeContainer(stepDelay: .zero)
+        let ready = await container.webhookExportIsReady()
+        XCTAssertTrue(ready)
+        let configuration = await container.currentWebhookConfiguration()
+        XCTAssertEqual(configuration?.host, MarketingDemo.webhookHost)
+        XCTAssertTrue(MarketingDemo.webhookHost.hasSuffix(".example.net"))
+        let token = configuration?.token ?? ""
+        XCTAssertGreaterThan(token.count, 8)
+        XCTAssertTrue(token.hasPrefix("demo"))
+    }
+
+    func test_container_webhookTestReturns200WithoutNetwork() async throws {
+        let container = MarketingDemo.makeContainer(stepDelay: .zero)
+        let stored = await container.currentWebhookConfiguration()
+        let configuration = try XCTUnwrap(stored)
+        let status = try await container.webhookTestSender(configuration, "1.0.2")
+        XCTAssertEqual(status, 200)
+    }
+
+    func test_container_seedsWebhookHistoryRows() throws {
+        let container = MarketingDemo.makeContainer(stepDelay: .zero)
+        let entries = try container.history.recentEntries(limit: 50)
+        let webhookRows = entries.filter { $0.sinks.contains("webhook") }
+        XCTAssertFalse(webhookRows.isEmpty)
+        XCTAssertEqual(entries.first?.webhookReference, "\(MarketingDemo.webhookHost) · HTTP 200")
     }
 
     func test_container_seedsSuccessfulHistory() throws {
@@ -34,8 +62,9 @@ final class MarketingDemoTests: XCTestCase {
         }
         let entries = try container.history.recentEntries(limit: 50)
         XCTAssertEqual(entries.count, MarketingDemo.seededDayCount + 1)
-        XCTAssertEqual(Set(entries.first?.sinks ?? []), ["github", "telegram"])
+        XCTAssertEqual(Set(entries.first?.sinks ?? []), ["github", "telegram", "webhook"])
         XCTAssertNotNil(entries.first?.githubCommitSha)
+        XCTAssertEqual(entries.first?.webhookReference, "\(MarketingDemo.webhookHost) · HTTP 200")
     }
 
     func test_livePreview_showsDemoNumbers() async {
@@ -78,10 +107,29 @@ final class MarketingDemoTests: XCTestCase {
         XCTAssertTrue(demo.hasPrefix("#if DEBUG"))
         XCTAssertTrue(demo.hasSuffix("#endif"))
         let composition = try loadSource("PulseCommit/Composition/AppContainer+default.swift")
-        let seam = try XCTUnwrap(composition.range(of: "MarketingDemo."))
-        let before = composition[..<seam.lowerBound]
-        let debugOpen = try XCTUnwrap(before.range(of: "#if DEBUG", options: .backwards))
-        XCTAssertNil(before[debugOpen.upperBound...].range(of: "#endif"))
+        try assertEveryUseIsInsideDebug(of: "MarketingDemo.", in: composition)
+        for path in try appSourcePaths() where path != "PulseCommit/Marketing/MarketingDemo.swift" {
+            try assertEveryUseIsInsideDebug(of: "MarketingDemo", in: try loadSource(path))
+        }
+    }
+
+    private func assertEveryUseIsInsideDebug(of needle: String, in source: String, file: StaticString = #filePath, line: UInt = #line) throws {
+        var searchStart = source.startIndex
+        while let hit = source.range(of: needle, range: searchStart..<source.endIndex) {
+            let before = source[..<hit.lowerBound]
+            let debugOpen = try XCTUnwrap(before.range(of: "#if DEBUG", options: .backwards), file: file, line: line)
+            XCTAssertNil(before[debugOpen.upperBound...].range(of: "#endif"), file: file, line: line)
+            searchStart = hit.upperBound
+        }
+    }
+
+    private func appSourcePaths() throws -> [String] {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let app = root.appendingPathComponent("PulseCommit")
+        let enumerator = try XCTUnwrap(FileManager.default.enumerator(at: app, includingPropertiesForKeys: nil))
+        return enumerator.compactMap { $0 as? URL }
+            .filter { $0.pathExtension == "swift" }
+            .map { String($0.path.dropFirst(root.path.count + 1)) }
     }
 
     private func loadSource(_ relativePath: String) throws -> String {

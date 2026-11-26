@@ -1,10 +1,17 @@
 import { ISLAND, SCREEN } from "./layout";
 
-export const Phone: React.FC<{ height: number; children: React.ReactNode }> = ({ height, children }) => {
+type ScreenSize = { width: number; height: number };
+
+export const Phone: React.FC<{ height: number; screen?: ScreenSize; children: React.ReactNode }> = ({
+  height,
+  screen = SCREEN,
+  children,
+}) => {
   const bezel = Math.round(height * 0.014);
   const screenH = height - bezel * 2;
-  const scale = screenH / SCREEN.height;
-  const screenW = SCREEN.width * scale;
+  const scale = screenH / screen.height;
+  const screenW = screen.width * scale;
+  const island = screen.width / SCREEN.width;
   const width = screenW + bezel * 2;
   const radius = width * 0.155;
   return (
@@ -35,8 +42,8 @@ export const Phone: React.FC<{ height: number; children: React.ReactNode }> = ({
             position: "absolute",
             left: 0,
             top: 0,
-            width: SCREEN.width,
-            height: SCREEN.height,
+            width: screen.width,
+            height: screen.height,
             transform: `scale(${scale})`,
             transformOrigin: "0 0",
           }}
@@ -45,11 +52,11 @@ export const Phone: React.FC<{ height: number; children: React.ReactNode }> = ({
           <div
             style={{
               position: "absolute",
-              left: (SCREEN.width - ISLAND.w) / 2,
-              top: ISLAND.top,
-              width: ISLAND.w,
-              height: ISLAND.h,
-              borderRadius: ISLAND.h / 2,
+              left: (screen.width - ISLAND.w * island) / 2,
+              top: ISLAND.top * island,
+              width: ISLAND.w * island,
+              height: ISLAND.h * island,
+              borderRadius: (ISLAND.h * island) / 2,
               background: "#000",
             }}
           />
@@ -59,7 +66,7 @@ export const Phone: React.FC<{ height: number; children: React.ReactNode }> = ({
   );
 };
 
-export function phoneWidth(height: number): number {
+export function phoneWidth(height: number, screen: ScreenSize = SCREEN): number {
   const bezel = Math.round(height * 0.014);
-  return (SCREEN.width * (height - bezel * 2)) / SCREEN.height + bezel * 2;
+  return (screen.width * (height - bezel * 2)) / screen.height + bezel * 2;
 }

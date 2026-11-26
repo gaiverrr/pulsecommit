@@ -9,6 +9,10 @@ enum MarketingDemo {
     static let activeKcal = 642
     static let sleepMinutes = 451
     static let defaultsSuite = "app.pulsecommit.marketing-demo"
+    static let webhookHost = "agent.example.net"
+    static let webhookEndpoint = "https://agent.example.net/pulse"
+    static let webhookToken = "demo-webhook-token-7f3c"
+    static let webhookSeededDays = 3
 
     static func isRequested(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
         arguments.contains(launchArgument)
@@ -26,6 +30,7 @@ enum MarketingDemo {
         preferences.githubBranch = "main"
         preferences.githubExportEnabled = true
         preferences.telegramExportEnabled = true
+        preferences.webhookExportEnabled = true
         preferences.healthPermissionNoticeDismissed = true
         preferences.selectedPeriod = "today"
         for _ in 0..<10 { _ = preferences.recordSuccessfulManualExport() }
@@ -33,8 +38,18 @@ enum MarketingDemo {
         let secrets = InMemorySecretsStore([
             KeychainTokenVault.storageKey: storedTokensJSON(),
             "tg_bot_token": "demo-bot",
-            "tg_chat_id": "demo-chat"
+            "tg_chat_id": "demo-chat",
+            WebhookSecretKeys.endpoint: webhookEndpoint,
+            WebhookSecretKeys.token: webhookToken,
+            WebhookSecretKeys.tokenHeader: WebhookConfiguration.defaultTokenHeader
         ])
+        let consentStore = HealthExportConsentStore(defaults: defaults)
+        if let webhookIdentity {
+            consentStore.accept(HealthExportConsentScope(
+                destination: webhookIdentity,
+                enabledCategoryIds: preferences.enabledCategoryIds
+            ))
+        }
         let history = (try? HistoryStore.inMemory()) ?? .noOp()
         seedHistory(history, now: now)
         let runGate = ExportRunGate()
@@ -46,7 +61,7 @@ enum MarketingDemo {
             history: history,
             healthStore: healthStore,
             registry: registry,
-            consentStore: HealthExportConsentStore(defaults: defaults),
+            consentStore: consentStore,
             automaticWorkoutConsentStore: AutomaticWorkoutConsentStore(defaults: defaults),
             orchestratorFactory: { container in
                 Orchestrator(
@@ -59,25 +74,48 @@ enum MarketingDemo {
                     ),
                     sinks: [
                         DemoSink(id: "github", delay: stepDelay * 3, reference: sha(seed: 0)),
-                        DemoSink(id: "telegram", delay: stepDelay * 2, reference: "4182")
+                        DemoSink(id: "telegram", delay: stepDelay * 2, reference: "4182"),
+                        DemoSink(id: WebhookDestinationSink.sinkID, delay: stepDelay, reference: webhookReference)
                     ],
                     historyStore: container.history,
                     runGate: runGate,
-                    consentRequirements: [
-                        "github": ConsentRequirement(
-                            sinkID: "github",
-                            destination: .github(owner: "octo-runner", repo: "health-log", branch: "main", subdir: "")
-                        ),
-                        "telegram": ConsentRequirement(
-                            sinkID: "telegram",
-                            destination: .telegram(chatID: "demo-chat", messageThreadID: nil)
-                        )
-                    ],
+                    consentRequirements: consentRequirements(),
                     consentVerifier: { _, _ in true }
                 )
             }
         )
+        container.webhookTestSender = { _, _ in 200 }
         return container
+    }
+
+    private static func consentRequirements() -> [String: ConsentRequirement] {
+        var requirements = [
+            "github": ConsentRequirement(
+                sinkID: "github",
+                destination: .github(owner: "octo-runner", repo: "health-log", branch: "main", subdir: "")
+            ),
+            "telegram": ConsentRequirement(
+                sinkID: "telegram",
+                destination: .telegram(chatID: "demo-chat", messageThreadID: nil)
+            )
+        ]
+        if let webhookIdentity {
+            requirements[WebhookDestinationSink.sinkID] = ConsentRequirement(
+                sinkID: WebhookDestinationSink.sinkID,
+                destination: webhookIdentity
+            )
+        }
+        return requirements
+    }
+
+    static var webhookReference: String {
+        WebhookDestinationSink.reference(host: webhookHost, statusCode: 200)
+    }
+
+    private static var webhookIdentity: HealthExportDestinationIdentity? {
+        guard let url = URL(string: webhookEndpoint),
+              let configuration = try? WebhookConfiguration(endpoint: url, token: webhookToken) else { return nil }
+        return HealthExportDestinationIdentity(webhook: configuration.consentIdentity)
     }
 
     static func sha(seed: Int) -> String {
@@ -106,15 +144,17 @@ enum MarketingDemo {
         for offset in 1...seededDayCount {
             let day = calendar.date(byAdding: .day, value: -offset, to: today) ?? today
             let started = calendar.date(byAdding: .minute, value: 21 * 60 + offset, to: day) ?? day
+            let webhook = offset <= webhookSeededDays
             try? history.append(HistoryEntry(
                 startedAt: started,
                 finishedAt: started.addingTimeInterval(4),
                 status: .success,
-                sinks: ["github", "telegram"],
+                sinks: webhook ? ["github", "telegram", WebhookDestinationSink.sinkID] : ["github", "telegram"],
                 daysCovered: [formatter.string(from: day)],
                 githubCommitSha: sha(seed: offset * 7),
                 githubBranch: "main",
-                telegramMessageReference: "\(4182 - offset)"
+                telegramMessageReference: "\(4182 - offset)",
+                webhookReference: webhook ? webhookReference : nil
             ))
         }
     }

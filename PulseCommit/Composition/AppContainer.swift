@@ -15,6 +15,7 @@ final class AppContainer: ObservableObject {
     private(set) var automaticWorkoutCoordinator: AutomaticWorkoutDeliveryCoordinator?
     private(set) var automaticWorkoutObserverController: AutomaticWorkoutObserverController?
     @Published private(set) var automaticWorkoutStateRevision: UInt64 = 0
+    var webhookTestSender: WebhookDestinationView.TestSender = WebhookDestinationView.liveSendTest
     private let factoryClosure: @MainActor (AppContainer) async -> Orchestrator
 
     private var cachedGithubProvider: DeviceFlowCredentialProvider?
