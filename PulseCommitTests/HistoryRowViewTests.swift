@@ -39,6 +39,42 @@ final class HistoryRowBadgeLayoutTests: XCTestCase {
         let wide = height(HistoryRowView(model: row(base + [webhook])), width: 2000)
         XCTAssertEqual(wide, twoBadges, accuracy: 1)
     }
+
+    private var longHostBadges: [HistoryRowModel.SinkBadge] {
+        let host = String(repeating: "a", count: 48) + ".example.net"
+        XCTAssertEqual(host.count, 60)
+        return [
+            HistoryRowModel.SinkBadge(label: "github", ok: true, kind: "github"),
+            HistoryRowModel.SinkBadge(label: "telegram", ok: true, kind: "telegram"),
+            HistoryRowModel.SinkBadge(label: "\(host) · HTTP 200", ok: true, kind: "webhook")
+        ]
+    }
+
+    private func size<V: View>(_ view: V, width: CGFloat) -> CGSize {
+        UIHostingController(rootView: view)
+            .sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude))
+    }
+
+    func test_sixtyCharacterHost_staysWithinRowWidth() {
+        let narrow: CGFloat = 370
+        let regular = size(HistoryRowView(model: row(longHostBadges)), width: narrow)
+        XCTAssertLessThanOrEqual(regular.width, narrow)
+        let accessibility = size(
+            HistoryRowView(model: row(longHostBadges)).environment(\.dynamicTypeSize, .accessibility3),
+            width: narrow
+        )
+        XCTAssertLessThanOrEqual(accessibility.width, narrow)
+    }
+
+    func test_singleBadge_hasNoEmptyLine() {
+        let narrow: CGFloat = 370
+        let short = height(HistoryRowView(model: row([
+            HistoryRowModel.SinkBadge(label: "github", ok: true, kind: "github")
+        ])), width: narrow)
+        let longOnly = size(HistoryRowView(model: row(Array(longHostBadges.suffix(1)))), width: narrow)
+        XCTAssertEqual(longOnly.height, short, accuracy: 0.5)
+        XCTAssertLessThanOrEqual(longOnly.width, narrow)
+    }
 }
 
 @MainActor

@@ -36,11 +36,17 @@ struct HistoryRowView: View {
     }
 
     private var sinkRow: some View {
-        ViewThatFits(in: .horizontal) {
-            badgeLine(model.sinkBadges)
-            VStack(alignment: .leading, spacing: 6) {
-                badgeLine(Array(model.sinkBadges.dropLast()))
-                badgeLine(Array(model.sinkBadges.suffix(1)))
+        Group {
+            if model.sinkBadges.count > 1 {
+                ViewThatFits(in: .horizontal) {
+                    badgeLine(model.sinkBadges)
+                    VStack(alignment: .leading, spacing: 6) {
+                        badgeLine(Array(model.sinkBadges.dropLast()))
+                        badgeLine(Array(model.sinkBadges.suffix(1)))
+                    }
+                }
+            } else {
+                badgeLine(model.sinkBadges)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -57,7 +63,8 @@ struct HistoryRowView: View {
                         foreground: badge.ok ? Theme.success : Theme.error,
                         background: Theme.elevated
                     )
-                    .fixedSize()
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                 }
             }
         }
