@@ -110,7 +110,7 @@ Reference: [Apple — Age ratings values and definitions](https://developer.appl
 
 ## Privacy nutrition
 
-App Privacy answers: **NOT VERIFIED**. The repository shows no developer backend and the developer does not receive Health data, but the Account Holder must answer the current questionnaire using Apple's definitions and account evidence. User-directed transfers to GitHub and Telegram must be considered. Do not treat this draft as a completed `Data Not Collected` declaration.
+App Privacy answers: **NOT VERIFIED**. The repository shows no developer backend and the developer does not receive Health data, but the Account Holder must answer the current questionnaire using Apple's definitions and account evidence. User-directed transfers to GitHub, Telegram and the webhook endpoint must be considered. Do not treat this draft as a completed `Data Not Collected` declaration.
 
 Candidate explanation for the Account Holder to validate before use:
 

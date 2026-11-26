@@ -1,6 +1,6 @@
 ## Terms of Use
 
-Last updated: 2026-11-22.
+Last updated: 2026-11-26.
 
 By installing or using Pulse Commit, you agree to the terms below.
 

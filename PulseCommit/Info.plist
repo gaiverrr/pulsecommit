@@ -27,9 +27,9 @@
 		<string>shortcuts</string>
 	</array>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Pulse Commit reads Apple Health data you select for manual exports to your GitHub repository or Telegram chat. If you separately turn on finished-workout messages, it also reads recently saved workouts in the background and sends one text summary to the Telegram chat and optional topic you approve.</string>
+	<string>Pulse Commit reads Apple Health data you select for manual exports to your GitHub repository, Telegram chat or HTTPS webhook. If you separately turn on finished-workout messages, it also reads recently saved workouts in the background and sends one text summary to the Telegram chat and optional topic you approve.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Pulse Commit does not write to Apple Health. It only reads the data you select so you can export it to your GitHub repository or Telegram chat.</string>
+	<string>Pulse Commit does not write to Apple Health. It only reads the data you select so you can export it to your GitHub repository, Telegram chat or HTTPS webhook.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
