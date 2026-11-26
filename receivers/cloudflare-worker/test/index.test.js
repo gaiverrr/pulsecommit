@@ -102,6 +102,46 @@ describe("receiver", () => {
     expect((await post({ event_type: "daily_export", summary: {}, date: 5 })).status).toBe(400);
   });
 
+  it("returns 413 for a chunked body above 1 MB without Content-Length", async () => {
+    const chunk = new TextEncoder().encode("a".repeat(64 * 1024));
+    let sent = 0;
+    const stream = new ReadableStream({
+      pull(controller) {
+        if (sent >= 20) return controller.close();
+        sent++;
+        controller.enqueue(chunk);
+      },
+    });
+    const req = new Request("https://example.com/", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+      body: stream,
+      duplex: "half",
+    });
+    expect(req.headers.get("Content-Length")).toBeNull();
+    expect((await worker.fetch(req, env)).status).toBe(413);
+  });
+
+  it("returns 500 without logging when the body stream errors mid-read", async () => {
+    let n = 0;
+    const stream = new ReadableStream({
+      pull(controller) {
+        if (n++ === 0) return controller.enqueue(new TextEncoder().encode('{"event_type":'));
+        controller.error(new Error("client aborted SECRET-BODY-TEXT"));
+      },
+    });
+    const req = new Request("https://example.com/", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+      body: stream,
+      duplex: "half",
+    });
+    const res = await worker.fetch(req, env);
+    expect([400, 500]).toContain(res.status);
+    expect(await res.json()).toEqual({ ok: false, error: "internal" });
+    for (const s of spies) expect(s).not.toHaveBeenCalled();
+  });
+
   it("never logs and never echoes body or token", async () => {
     const secretBody = { ...daily, summary_markdown: "SECRET-BODY-TEXT" };
     const res = await post(secretBody);

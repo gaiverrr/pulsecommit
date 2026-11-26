@@ -5,7 +5,7 @@ A Cloudflare Worker that accepts the Pulse Commit webhook, checks the token, val
 ## What it does
 
 - `POST /` only. Any other method or path returns 405.
-- `Authorization: Bearer <token>` is compared in constant time with the `WEBHOOK_TOKEN` secret. Missing or wrong token returns 401. If the secret is not set, every request returns 401.
+- `Authorization: Bearer <token>` is compared in constant time with the `WEBHOOK_TOKEN` secret. Missing or wrong token returns 401. This Worker only accepts `Authorization: Bearer <token>`, so the header name in the app must stay `Authorization`. If the secret is not set, every request returns 401.
 - `Content-Type` must be `application/json` (415 otherwise). Body limit is 1 MB (413 above).
 - The JSON body must be an object with `event_type` of `daily_export` or `test`. For `daily_export` it also needs a `summary` object and a `date` string. Otherwise 400.
 - Success returns `200 {"ok":true,"event_type":"...","bytes":N}`.
@@ -15,7 +15,7 @@ A Cloudflare Worker that accepts the Pulse Commit webhook, checks the token, val
 
 ```sh
 cd receivers/cloudflare-worker
-npm install
+npm ci
 npx wrangler secret put WEBHOOK_TOKEN
 npx wrangler deploy
 ```

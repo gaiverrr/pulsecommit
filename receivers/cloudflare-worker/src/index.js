@@ -50,6 +50,15 @@ async function readLimited(request) {
 
 export default {
   async fetch(request, env) {
+    try {
+      return await handle(request, env);
+    } catch {
+      return json(500, { ok: false, error: "internal" });
+    }
+  },
+};
+
+async function handle(request, env) {
     const url = new URL(request.url);
     if (request.method !== "POST" || url.pathname !== "/") {
       return json(405, { ok: false, error: "method_not_allowed" }, { Allow: "POST" });
@@ -83,5 +92,4 @@ export default {
       }
     }
     return json(200, { ok: true, event_type: payload.event_type, bytes: bytes.byteLength });
-  },
-};
+}
