@@ -10,7 +10,21 @@ import {
   formatInt,
   progressAt,
   sceneAt,
+  MARKS,
+  REPLY_WORDS,
+  replyTypedAt,
+  replyWordsShown,
 } from "../src/timeline.ts";
+
+test("agent reply is fully typed at least 1 s before the loop ends", () => {
+  const words = REPLY_WORDS.length;
+  assert.ok(words <= 14, String(words));
+  assert.equal(replyWordsShown(MARKS.replyIn - 1), 0);
+  assert.ok(replyWordsShown(MARKS.replyIn) >= 1);
+  assert.equal(replyWordsShown(DURATION - 1 - FPS), words);
+  assert.equal(replyWordsShown(MARKS.returnFrom - Math.round(1.2 * FPS)), words);
+  assert.ok(replyTypedAt() <= Math.round(8.3 * FPS), String(replyTypedAt()));
+});
 
 test("loop is 10 seconds at 60 fps", () => {
   assert.equal(FPS, 60);

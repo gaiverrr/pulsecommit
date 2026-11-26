@@ -1,6 +1,6 @@
 import { SCREEN } from "./layout";
 import { color, font } from "./theme";
-import { MARKS, PERIODS, clamp01, countUp, easeOut, formatInt } from "./timeline";
+import { MARKS, PERIODS, REPLY_WORDS, clamp01, countUp, easeOut, formatInt, replyWordsShown } from "./timeline";
 
 const tg = { bg: "#17212b", bubble: "#182533", link: "#6ab2f2", dim: "#708499" };
 const AGENT = tg.link;
@@ -105,15 +105,11 @@ const Bubble: React.FC<{
   sender: string;
   senderColor: string;
   avatar: React.ReactNode;
-  top: number;
   progress: number;
   children: React.ReactNode;
-}> = ({ sender, senderColor, avatar, top, progress, children }) => (
+}> = ({ sender, senderColor, avatar, progress, children }) => (
   <div
     style={{
-      position: "absolute",
-      left: 44,
-      top,
       display: "flex",
       alignItems: "flex-end",
       gap: 22,
@@ -226,30 +222,23 @@ const TypingDots: React.FC<{ frame: number }> = ({ frame }) => (
   </div>
 );
 
-const REPLY: { text: string; mono?: boolean }[] = [
-  { text: "12 483", mono: true },
-  { text: " steps, 18% above your 7-day average. Sleep " },
-  { text: "7h 31m", mono: true },
-  { text: ", HRV " },
-  { text: "47 ms", mono: true },
-  { text: ": your usual range. An easy run tomorrow fits." },
-];
-
 const Reply: React.FC<{ frame: number }> = ({ frame }) => {
-  let budget = Math.max(0, Math.floor((frame - MARKS.replyIn) / 2.5)) + 1;
+  const shown = replyWordsShown(frame);
   return (
     <div style={{ fontFamily: font.ui, fontSize: 46, lineHeight: 1.36, color: color.text, width: 880 }}>
-      <div style={{ minHeight: 250 }}>
-      {REPLY.map((part, i) => {
-        const words = part.text.split(/(?<= )/);
-        const shown = part.mono ? (budget > 0 ? part.text : "") : words.slice(0, Math.max(0, budget)).join("");
-        budget -= part.mono ? 1 : words.length;
-        return (
-          <span key={i} style={part.mono ? { fontFamily: font.mono, color: color.accent } : undefined}>
-            {shown}
+      <div>
+        {REPLY_WORDS.map((word, i) => (
+          <span
+            key={i}
+            style={{
+              ...(word.mono ? { fontFamily: font.mono, color: color.accent } : {}),
+              opacity: i < shown ? 1 : 0,
+            }}
+          >
+            {i > 0 ? " " : ""}
+            {word.text}
           </span>
-        );
-      })}
+        ))}
       </div>
       <div style={{ textAlign: "right", color: tg.dim, fontSize: 30, marginTop: 10, fontFamily: font.mono }}>21:01</div>
     </div>
@@ -277,25 +266,26 @@ export const TelegramScene: React.FC<{ frame: number; date: string }> = ({ frame
       >
         Today
       </div>
-      <Bubble
-        sender="pulse bot"
-        senderColor={color.accent}
-        avatar={<Avatar label="PC" bg={color.accent} />}
-        top={520}
-        progress={appear(frame, MARKS.summaryIn)}
-      >
-        <Summary frame={frame} date={date} />
-      </Bubble>
-      {typing && (
-        <Bubble sender="Health agent" senderColor={AGENT} avatar={<Avatar label="AI" bg={AGENT} />} top={1830} progress={typingIn}>
-          <TypingDots frame={frame} />
+      <div style={{ position: "absolute", left: 44, top: 520, display: "flex", flexDirection: "column", gap: 12 }}>
+        <Bubble
+          sender="pulse bot"
+          senderColor={color.accent}
+          avatar={<Avatar label="PC" bg={color.accent} />}
+          progress={appear(frame, MARKS.summaryIn)}
+        >
+          <Summary frame={frame} date={date} />
         </Bubble>
-      )}
-      {frame >= MARKS.replyIn && (
-        <Bubble sender="Health agent" senderColor={AGENT} avatar={<Avatar label="AI" bg={AGENT} />} top={1830} progress={replyIn}>
-          <Reply frame={frame} />
-        </Bubble>
-      )}
+        {typing && (
+          <Bubble sender="Health agent" senderColor={AGENT} avatar={<Avatar label="AI" bg={AGENT} />} progress={typingIn}>
+            <TypingDots frame={frame} />
+          </Bubble>
+        )}
+        {frame >= MARKS.replyIn && (
+          <Bubble sender="Health agent" senderColor={AGENT} avatar={<Avatar label="AI" bg={AGENT} />} progress={replyIn}>
+            <Reply frame={frame} />
+          </Bubble>
+        )}
+      </div>
       <div
         style={{
           position: "absolute",

@@ -34,11 +34,11 @@ export const MARKS = {
   historyTap: 318,
   historyIn: 334,
   telegramIn: 404,
-  summaryIn: 420,
-  countFrom: 428,
-  countTo: 486,
-  typingFrom: 492,
-  replyIn: 532,
+  summaryIn: 414,
+  countFrom: 420,
+  countTo: 456,
+  typingFrom: 448,
+  replyIn: 470,
   returnFrom: 562,
   returnTo: 584,
 };
@@ -48,6 +48,30 @@ export const CAPTIONS = [
   { kicker: "$ git log --oneline", title: "Telegram, GitHub or your webhook" },
   { kicker: "> telegram", title: "A summary your agent can read" },
 ];
+
+export const REPLY_WORDS: { text: string; mono?: boolean }[] = [
+  { text: "Steps" },
+  { text: "18%", mono: true },
+  { text: "above" },
+  { text: "your" },
+  { text: "7-day" },
+  { text: "average." },
+  { text: "Good" },
+  { text: "day" },
+  { text: "for" },
+  { text: "intervals." },
+];
+
+const REPLY_WORD_FRAMES = 2;
+
+export function replyWordsShown(frame: number): number {
+  if (frame < MARKS.replyIn) return 0;
+  return Math.min(REPLY_WORDS.length, Math.floor((frame - MARKS.replyIn) / REPLY_WORD_FRAMES) + 1);
+}
+
+export function replyTypedAt(): number {
+  return MARKS.replyIn + (REPLY_WORDS.length - 1) * REPLY_WORD_FRAMES;
+}
 
 const CAPTION_SWITCHES = [
   { at: 250, to: 1 },
