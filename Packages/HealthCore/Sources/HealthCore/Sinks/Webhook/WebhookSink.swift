@@ -27,7 +27,10 @@ extension WebhookSinkError: LocalizedError {
             switch code {
             case -1009: return "No internet connection (\(code))"
             case -1001: return "The endpoint did not respond in 30 seconds (\(code))"
-            case -1206 ... -1200: return "The endpoint's HTTPS certificate is not trusted (\(code))"
+            case -1200: return "The HTTPS connection to the endpoint failed (\(code))"
+            case -1204 ... -1201: return "The endpoint's HTTPS certificate is not trusted (\(code))"
+            case -1205: return "The endpoint rejected the client certificate (\(code))"
+            case -1206: return "The endpoint requires a client certificate (\(code))"
             default: return "Network error (\(code))"
             }
         case .invalidResponse:

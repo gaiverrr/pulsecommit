@@ -29,6 +29,7 @@ struct WebhookDestinationView: View {
     @State private var consentRefresh = 0
     @State private var copied = false
     @State private var hasStoredSettings = false
+    @State private var storedEndpoint: String?
 
     init(
         initialDraft: WebhookSettingsDraft? = nil,
@@ -371,6 +372,7 @@ struct WebhookDestinationView: View {
                     testStatus = .idle
                     consentScope = nil
                     hasStoredSettings = false
+                    storedEndpoint = nil
                 }
             }
             .font(.pcBody)
@@ -437,6 +439,7 @@ struct WebhookDestinationView: View {
             )
             saveError = nil
             hasStoredSettings = true
+            storedEndpoint = submitted.endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
             return true
         } catch let error as WebhookConfigurationError {
             saveError = error.localizedDescription
@@ -449,12 +452,15 @@ struct WebhookDestinationView: View {
     private func persistIfValid() {
         guard loaded else { return }
         let submitted = draft
+        container.disableWebhookIfInvalidChange(draft: submitted, storedEndpoint: storedEndpoint)
         Task { @MainActor in await container.applyWebhookDraftOnLeave(submitted) }
     }
 
     private func refreshConsentScope() async {
         consentScope = await container.currentConsentScope(for: .webhook)
-        hasStoredSettings = await container.storedWebhookSettings() != nil
+        let stored = await container.storedWebhookSettings()
+        hasStoredSettings = stored != nil
+        storedEndpoint = stored?.endpoint
     }
 
     private func loadIfNeeded() {

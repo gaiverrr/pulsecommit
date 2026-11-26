@@ -29,6 +29,12 @@ struct WebhookSettingsDraft: Equatable, Sendable {
         }
     }
 
+    func isInvalidChange(from storedEndpoint: String?) -> Bool {
+        let submitted = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let storedEndpoint, !submitted.isEmpty, submitted != storedEndpoint else { return false }
+        return (try? configuration()) == nil
+    }
+
     func configuration() throws -> WebhookConfiguration {
         let trimmed = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed) else { throw WebhookConfigurationError.missingHost }
@@ -96,6 +102,13 @@ extension AppContainer {
         await configuredWebhookTarget() != nil
     }
 
+    @discardableResult
+    func disableWebhookIfInvalidChange(draft: WebhookSettingsDraft, storedEndpoint: String?) -> Bool {
+        guard draft.isInvalidChange(from: storedEndpoint) else { return false }
+        preferences.webhookExportEnabled = false
+        return true
+    }
+
     func applyWebhookDraftOnLeave(_ draft: WebhookSettingsDraft) async {
         if draft.endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             await clearWebhookSettings()
@@ -109,9 +122,7 @@ extension AppContainer {
             )
             return
         }
-        let stored = await storedWebhookSettings()
-        let submitted = draft.endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let stored, stored.endpoint != submitted {
+        if draft.isInvalidChange(from: await storedWebhookSettings()?.endpoint) {
             preferences.webhookExportEnabled = false
         }
     }
