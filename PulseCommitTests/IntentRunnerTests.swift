@@ -46,6 +46,102 @@ final class IntentRunnerTests: XCTestCase {
         }
     }
 
+    func test_destinationOption_rawValuesStayStable() {
+        XCTAssertEqual(DestinationOption.both.rawValue, "both")
+        XCTAssertEqual(DestinationOption.githubOnly.rawValue, "githubOnly")
+        XCTAssertEqual(DestinationOption.telegramOnly.rawValue, "telegramOnly")
+        XCTAssertEqual(DestinationOption.webhookOnly.rawValue, "webhookOnly")
+        XCTAssertEqual(DestinationOption.allEnabled.rawValue, "allEnabled")
+        for raw in ["both", "githubOnly", "telegramOnly", "webhookOnly", "allEnabled"] {
+            XCTAssertEqual(DestinationOption(rawValue: raw)?.rawValue, raw)
+        }
+    }
+
+    func test_destinationOption_both_neverIncludesWebhook() {
+        XCTAssertEqual(DestinationOption.both.sinkIds, ["github", "telegram"])
+    }
+
+    func test_destinationOption_webhookOnly_mapsToWebhook() {
+        XCTAssertEqual(DestinationOption.webhookOnly.sinkIds, ["webhook"])
+    }
+
+    func test_request_both_excludesConfiguredWebhook() async throws {
+        let container = try await makeContainer(webhookConfigured: true)
+        let request = try await IntentRunner.request(
+            mode: .lastDayOnly,
+            sinkFilter: DestinationOption.both.sinkIds,
+            container: container
+        )
+        XCTAssertEqual(request.enabledSinkIds, ["github", "telegram"])
+    }
+
+    func test_request_webhookOnly_returnsWebhook() async throws {
+        let container = try await makeContainer(webhookConfigured: true)
+        let request = try await IntentRunner.request(
+            mode: .lastDayOnly,
+            sinkFilter: DestinationOption.webhookOnly.sinkIds,
+            container: container
+        )
+        XCTAssertEqual(request.enabledSinkIds, ["webhook"])
+    }
+
+    func test_request_allEnabled_returnsEveryConfiguredDestination() async throws {
+        let container = try await makeContainer(webhookConfigured: true)
+        let request = try await IntentRunner.request(
+            mode: .lastDayOnly,
+            sinkFilter: DestinationOption.allEnabled.sinkIds,
+            container: container
+        )
+        XCTAssertEqual(request.enabledSinkIds, ["github", "telegram", "webhook"])
+    }
+
+    func test_request_allEnabled_withoutWebhook_returnsConfiguredOnly() async throws {
+        let container = try await makeContainer()
+        let request = try await IntentRunner.request(
+            mode: .lastDayOnly,
+            sinkFilter: DestinationOption.allEnabled.sinkIds,
+            container: container
+        )
+        XCTAssertEqual(request.enabledSinkIds, ["github", "telegram"])
+    }
+
+    func test_request_webhookOnly_unconfigured_throwsWebhookWording() async throws {
+        let container = try await makeContainer()
+        do {
+            _ = try await IntentRunner.request(
+                mode: .lastDayOnly,
+                sinkFilter: DestinationOption.webhookOnly.sinkIds,
+                container: container
+            )
+            XCTFail("expected webhookNotConfigured")
+        } catch let error as IntentError {
+            guard case .webhookNotConfigured = error else {
+                return XCTFail("expected webhookNotConfigured, got \(error)")
+            }
+            XCTAssertEqual(
+                String(localized: error.localizedStringResource),
+                "Set up the Webhook destination in Pulse Commit first."
+            )
+        }
+    }
+
+    func test_request_githubOnly_unconfigured_throwsGenericError() async throws {
+        let container = try await makeContainer()
+        container.preferences.githubExportEnabled = false
+        do {
+            _ = try await IntentRunner.request(
+                mode: .lastDayOnly,
+                sinkFilter: DestinationOption.githubOnly.sinkIds,
+                container: container
+            )
+            XCTFail("expected noDestinationsConfigured")
+        } catch let error as IntentError {
+            guard case .noDestinationsConfigured = error else {
+                return XCTFail("expected noDestinationsConfigured, got \(error)")
+            }
+        }
+    }
+
     func test_configuredSinkIds_bothConfiguredAndEnabled_returnsBoth() async throws {
         let container = try await makeContainer()
         let ids = await IntentRunner.configuredSinkIds(container)
@@ -116,6 +212,7 @@ final class IntentRunnerTests: XCTestCase {
     /// production toggle-respecting sink construction.
     private func makeContainer(
         consentAccepted: Bool = true,
+        webhookConfigured: Bool = false,
         historyValidator: @escaping Orchestrator.HistoryValidator = { _, _, _ in }
     ) async throws -> AppContainer {
         let secrets = InMemorySecretsStore()
@@ -197,7 +294,7 @@ final class IntentRunnerTests: XCTestCase {
             )
         }
 
-        return AppContainer(
+        let container = AppContainer(
             secrets: secrets,
             preferences: preferences,
             history: history,
@@ -206,6 +303,15 @@ final class IntentRunnerTests: XCTestCase {
             consentStore: consentStore,
             orchestratorFactory: factory
         )
+        if webhookConfigured {
+            _ = try await container.saveWebhookSettings(
+                endpoint: "https://hooks.example.com/pulse",
+                token: "secret-token-value",
+                tokenHeader: "Authorization"
+            )
+            container.preferences.webhookExportEnabled = true
+        }
+        return container
     }
 
     private func ephemeralDefaults() -> UserDefaults {

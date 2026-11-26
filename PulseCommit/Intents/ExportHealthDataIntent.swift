@@ -4,7 +4,7 @@ import Foundation
 struct ExportHealthDataIntent: AppIntent {
     static let title: LocalizedStringResource = "Export Health Data"
     static let description = IntentDescription(
-        "Exports a window of health data to one or both destinations."
+        "Exports a window of health data to the destinations you choose."
     )
 
     static let openAppWhenRun: Bool = false
