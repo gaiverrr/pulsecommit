@@ -43,6 +43,13 @@ final class StoreListingTests: XCTestCase {
         }
     }
 
+    func test_appName_isWithinThirtyCharLimit() throws {
+        let body = try read("docs/store/listing.md")
+        let name = extractField(body, heading: "App Name") ?? ""
+        XCTAssertEqual(name, "Pulse Commit: Health Export")
+        XCTAssertLessThanOrEqual(name.count, 30, "App name is \(name.count) chars (limit 30)")
+    }
+
     func test_subtitle_isWithinThirtyCharLimit() throws {
         let body = try read("docs/store/listing.md")
         let subtitle = extractField(body, heading: "Subtitle") ?? ""
@@ -78,8 +85,9 @@ final class StoreListingTests: XCTestCase {
                                   "Keywords '\(keywords)' is \(byteCount) UTF-8 bytes (limit 100)")
         XCTAssertTrue(keywords.contains("healthkit"), "Keywords must include healthkit")
         XCTAssertTrue(keywords.contains("telegram"), "Keywords must include telegram")
+        let name = (extractField(body, heading: "App Name") ?? "").lowercased()
         let subtitle = (extractField(body, heading: "Subtitle") ?? "").lowercased()
-        let indexedWords = Set(("pulse commit " + subtitle).split(whereSeparator: { !$0.isLetter }).map(String.init))
+        let indexedWords = Set((name + " " + subtitle).split(whereSeparator: { !$0.isLetter }).map(String.init))
         let keywordList = keywords.split(separator: ",").map(String.init)
         XCTAssertFalse(keywordList.contains { $0.contains(" ") }, "Keywords must be comma-separated without spaces")
         XCTAssertTrue(indexedWords.isDisjoint(with: keywordList),
@@ -102,7 +110,7 @@ final class StoreListingTests: XCTestCase {
     func test_description_containsHeroLineAndAntiPositioningAndFreePrice() throws {
         let body = try read("docs/store/listing.md")
         XCTAssertTrue(
-            body.contains("Your Apple Health, committed daily to your own GitHub repo."),
+            body.contains("Daily Apple Health exports for your own AI agent: OpenClaw, Hermes, Claude or any agent that reads JSON."),
             "Description must contain the hero line verbatim"
         )
         XCTAssertTrue(
@@ -123,6 +131,7 @@ final class StoreListingTests: XCTestCase {
         let body = try read("docs/store/listing.md")
         XCTAssertTrue(body.contains("api.github.com"), "Must name api.github.com")
         XCTAssertTrue(body.contains("api.telegram.org"), "Must name api.telegram.org")
+        XCTAssertTrue(body.contains("the webhook host you enter"), "Must disclose the user-supplied webhook host")
     }
 
     func test_pricingRecordsFreeReleaseWithoutClaimingAppStoreConnectState() throws {
