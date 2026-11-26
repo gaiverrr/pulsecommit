@@ -48,6 +48,30 @@ final class MarketingDemoTests: XCTestCase {
         XCTAssertNotNil(preview.todayActiveKcal)
     }
 
+    func test_invalidatePaths_leaveStandardConsentUntouched() async {
+        let keys = HealthExportDestinationKind.allCases.map(HealthExportConsentStore.storageKey(for:))
+            + [AutomaticWorkoutConsentStore.storageKey]
+        let standard = UserDefaults.standard
+        let saved = keys.map { standard.object(forKey: $0) }
+        defer {
+            for (key, value) in zip(keys, saved) { standard.set(value, forKey: key) }
+        }
+        for key in keys { standard.set(Data("sentinel-\(key)".utf8), forKey: key) }
+        let before = keys.map { standard.data(forKey: $0) }
+
+        let container = MarketingDemo.makeContainer(stepDelay: .zero)
+        await container.updateTelegramSecret("other-bot", for: "tg_bot_token").value
+        await container.updateTelegramSecret("other-chat", for: "tg_chat_id").value
+        container.preferences.githubOwner = "someone-else"
+        container.preferences.enabledCategoryIds = ["steps"]
+        container.consentStore.invalidate(.github)
+        container.consentStore.invalidate(.telegram)
+        container.consentStore.reset()
+        container.automaticWorkoutConsentStore.invalidate()
+
+        XCTAssertEqual(keys.map { standard.data(forKey: $0) }, before)
+    }
+
     func test_demoSeam_isCompiledOnlyInDebug() throws {
         let demo = try loadSource("PulseCommit/Marketing/MarketingDemo.swift")
             .trimmingCharacters(in: .whitespacesAndNewlines)

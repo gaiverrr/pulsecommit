@@ -46,6 +46,8 @@ enum MarketingDemo {
             history: history,
             healthStore: healthStore,
             registry: registry,
+            consentStore: HealthExportConsentStore(defaults: defaults),
+            automaticWorkoutConsentStore: AutomaticWorkoutConsentStore(defaults: defaults),
             orchestratorFactory: { container in
                 Orchestrator(
                     windowResolver: ExportWindowResolver(timezone: .current),
