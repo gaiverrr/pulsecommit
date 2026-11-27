@@ -21,6 +21,7 @@ struct PulseCommitApp: App {
             }
             .tint(Theme.accent)
             .preferredColorScheme(.dark)
+            .task { await container.migrateWebhookEnrolmentIfNeeded() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task { await container.handleAutomaticWorkoutLifecycleEvent() }

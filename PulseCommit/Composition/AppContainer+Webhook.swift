@@ -19,16 +19,6 @@ struct WebhookSettingsDraft: Equatable, Sendable {
         tokenHeader: WebhookConfiguration.defaultTokenHeader
     )
 
-    var validationMessage: String? {
-        guard !endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        do {
-            _ = try configuration()
-            return nil
-        } catch {
-            return error.localizedDescription
-        }
-    }
-
     var validationError: WebhookConfigurationError? {
         guard !endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         do {
@@ -110,6 +100,17 @@ extension AppContainer {
         _ = try? await enqueueWebhookWrite { await self.removeWebhookSettings() }.value
     }
 
+    func migrateWebhookEnrolmentIfNeeded() async {
+        guard !preferences.webhookExportEnabledIsSet else { return }
+        guard let stored = try? Optional(await loadWebhookSettings()) else { return }
+        guard !preferences.webhookExportEnabledIsSet else { return }
+        guard stored != nil, let scope = await webhookConsentScope() else {
+            preferences.initializeWebhookExportEnabled(false)
+            return
+        }
+        preferences.initializeWebhookExportEnabled(consentStore.hasCurrentConsent(for: scope))
+    }
+
     func webhookWritesSettled() async {
         while let pending = lastWebhookWrite {
             await pending.value
@@ -162,20 +163,12 @@ extension AppContainer {
 
     private func writeWebhookSettings(_ configuration: WebhookConfiguration) async throws {
         defer { noteWebhookChanged() }
-        let previous: WebhookSettingsDraft?
-        let readFailed: Bool
-        do {
-            previous = try await loadWebhookSettings()
-            readFailed = false
-        } catch {
-            previous = nil
-            readFailed = true
-        }
+        let previous = try await loadWebhookSettings()
         let newEndpoint = configuration.endpoint.absoluteString
-        if readFailed || previous?.consentIdentity != configuration.consentIdentity {
+        if previous?.consentIdentity != configuration.consentIdentity {
             consentStore.invalidate(.webhook)
         }
-        let endpointChanges = readFailed || previous?.endpoint != newEndpoint
+        let endpointChanges = previous?.endpoint != newEndpoint
         do {
             if endpointChanges {
                 try await secrets.set(nil, for: WebhookSecretKeys.endpoint)
@@ -230,6 +223,7 @@ extension AppContainer {
     }
 
     func configuredWebhookTarget() async -> (configuration: WebhookConfiguration, requirement: ConsentRequirement)? {
+        await migrateWebhookEnrolmentIfNeeded()
         guard webhookEnrolled,
               let configuration = await currentWebhookConfiguration(),
               webhookEnrolled else { return nil }

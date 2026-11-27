@@ -108,6 +108,7 @@ final class WebhookDestinationModel: ObservableObject {
             await refresh()
             return
         }
+        await container.webhookWritesSettled()
         let currentGeneration = container.resetGeneration
         do {
             let value = try await container.loadWebhookSettings()
@@ -175,7 +176,6 @@ final class WebhookDestinationModel: ObservableObject {
 
     func remove() async {
         guard let container else { return }
-        await container.clearWebhookSettings()
         endpoint = ""
         token = ""
         tokenHeader = WebhookConfiguration.defaultTokenHeader
@@ -183,6 +183,7 @@ final class WebhookDestinationModel: ObservableObject {
         stored = nil
         consentScope = nil
         consentIsCurrent = false
+        await container.clearWebhookSettings()
     }
 
     func leave() {

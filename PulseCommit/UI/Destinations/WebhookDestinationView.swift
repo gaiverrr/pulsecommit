@@ -59,9 +59,9 @@ struct WebhookDestinationView: View {
         .navigationTitle("Webhook")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .onAppear {
+        .task {
             model.attach(container)
-            Task { await model.load() }
+            await model.load()
         }
         .onDisappear { model.leave() }
         .onChange(of: model.endpoint) { _, _ in copied = false }

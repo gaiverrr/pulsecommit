@@ -73,8 +73,11 @@ final class WebhookConsentReviewTests: XCTestCase {
         return defaults
     }
 
-    private func makeContainer(secrets: any SecretsStore = InMemorySecretsStore()) -> AppContainer {
-        let defaults = ephemeralDefaults()
+    private func makeContainer(
+        secrets: any SecretsStore = InMemorySecretsStore(),
+        defaults: UserDefaults? = nil
+    ) -> AppContainer {
+        let defaults = defaults ?? ephemeralDefaults()
         let preferences = PreferencesStore(defaults: defaults)
         preferences.enabledCategoryIds = ["steps"]
         let healthStore = HealthStoreClient()
@@ -229,6 +232,129 @@ final class WebhookConsentReviewTests: XCTestCase {
         XCTAssertEqual(model.token, "")
     }
 
+    func test_item1_reopeningRightAfterBackLoadsTheQueuedWrite() async throws {
+        let container = makeContainer()
+        try await enrol(container)
+        let first = await makeModel(container)
+        first.endpoint = urlB
+        first.token = tokenB
+        first.leave()
+
+        let second = await makeModel(container)
+        XCTAssertEqual(second.endpoint, urlB)
+        XCTAssertEqual(second.token, tokenB)
+        second.leave()
+        await container.webhookWritesSettled()
+
+        let stored = try await container.loadWebhookSettings()
+        XCTAssertEqual(stored?.endpoint, urlB)
+    }
+
+    func test_item1_removeThenQuickBackDoesNotWriteTheOldDraft() async throws {
+        let container = makeContainer()
+        try await enrol(container)
+        let model = await makeModel(container)
+        model.endpoint = urlB
+
+        let removal = Task { await model.remove() }
+        await Task.yield()
+        XCTAssertEqual(model.endpoint, "")
+        model.leave()
+        await removal.value
+        await container.webhookWritesSettled()
+
+        let stored = try await container.loadWebhookSettings()
+        XCTAssertNil(stored)
+    }
+
+    func test_item2_resetAfterAQueuedLeaveWriteStoresNothing() async throws {
+        let container = makeContainer()
+        let model = await makeModel(container)
+        model.endpoint = urlA
+        model.token = tokenA
+
+        model.leave()
+        container.prepareForReset()
+        await container.webhookWritesSettled()
+
+        let stored = try await container.loadWebhookSettings()
+        XCTAssertNil(stored)
+    }
+
+    func test_upgradeEnrolsAStoredWebhookWhoseConsentIsCurrent() async throws {
+        let defaults = ephemeralDefaults()
+        let container = makeContainer(defaults: defaults)
+        try await container.saveWebhookSettings(endpoint: urlA, token: tokenA, tokenHeader: "Authorization")
+        let maybeScope = await container.webhookConsentScope()
+        container.consentStore.accept(try XCTUnwrap(maybeScope))
+        defaults.removeObject(forKey: PreferencesStore.Key.webhookExportEnabled)
+
+        await container.migrateWebhookEnrolmentIfNeeded()
+
+        XCTAssertTrue(container.preferences.webhookExportEnabled)
+        let ready = await container.webhookExportIsReady()
+        XCTAssertTrue(ready)
+    }
+
+    func test_upgradeLeavesAWebhookWithoutCurrentConsentOff() async throws {
+        let defaults = ephemeralDefaults()
+        let container = makeContainer(defaults: defaults)
+        try await container.saveWebhookSettings(endpoint: urlA, token: tokenA, tokenHeader: "Authorization")
+        container.consentStore.accept(HealthExportConsentScope(
+            destination: .webhook(scheme: "https", host: "hooks.example.com", port: nil, pathSHA256: "legacy"),
+            enabledCategoryIds: ["steps"]
+        ))
+        defaults.removeObject(forKey: PreferencesStore.Key.webhookExportEnabled)
+
+        await container.migrateWebhookEnrolmentIfNeeded()
+
+        XCTAssertFalse(container.preferences.webhookExportEnabled)
+        XCTAssertNotNil(defaults.object(forKey: PreferencesStore.Key.webhookExportEnabled))
+        let ids = await configuredIDs(container)
+        XCTAssertFalse(ids.contains("webhook"))
+    }
+
+    func test_upgradeMigrationRunsBeforeExportsReadEnrolment() async throws {
+        let defaults = ephemeralDefaults()
+        let container = makeContainer(defaults: defaults)
+        try await container.saveWebhookSettings(endpoint: urlA, token: tokenA, tokenHeader: "Authorization")
+        let maybeScope = await container.webhookConsentScope()
+        container.consentStore.accept(try XCTUnwrap(maybeScope))
+        defaults.removeObject(forKey: PreferencesStore.Key.webhookExportEnabled)
+
+        let ids = await configuredIDs(container)
+        XCTAssertTrue(ids.contains("webhook"))
+    }
+
+    func test_upgradeMigrationWritesNothingWhenKeychainReadFails() async throws {
+        let defaults = ephemeralDefaults()
+        let secrets = ScriptedSecretsStore()
+        let container = makeContainer(secrets: secrets, defaults: defaults)
+        try await container.saveWebhookSettings(endpoint: urlA, token: tokenA, tokenHeader: "Authorization")
+        defaults.removeObject(forKey: PreferencesStore.Key.webhookExportEnabled)
+        secrets.failGets(WebhookSecretKeys.endpoint, times: 1)
+
+        await container.migrateWebhookEnrolmentIfNeeded()
+
+        XCTAssertNil(defaults.object(forKey: PreferencesStore.Key.webhookExportEnabled))
+    }
+
+    func test_item8_unreadablePreviousSettingsAbortTheSaveBeforeWriting() async throws {
+        let secrets = ScriptedSecretsStore()
+        let container = makeContainer(secrets: secrets)
+        try await enrol(container)
+        secrets.clearWrites()
+        secrets.failGets(WebhookSecretKeys.token, times: 1)
+
+        do {
+            try await container.saveWebhookSettings(endpoint: urlB, token: tokenB, tokenHeader: "Authorization")
+            XCTFail("expected a read error")
+        } catch {}
+
+        XCTAssertEqual(secrets.writes, [])
+        XCTAssertEqual(secrets.value(WebhookSecretKeys.endpoint), urlA)
+    }
+
     func test_item3_editedURLNeverShowsTheOldURLsConsentAsCurrent() async throws {
         let container = makeContainer()
         try await enrol(container)
@@ -251,7 +377,8 @@ final class WebhookConsentReviewTests: XCTestCase {
         model.endpoint = urlA
 
         let running = Task { await model.sendTest() }
-        while sender.calls == 0 { await Task.yield() }
+        for _ in 0..<1_000 where sender.calls == 0 { await Task.yield() }
+        XCTAssertEqual(sender.calls, 1)
         XCTAssertEqual(model.testStatus, .sending)
 
         model.token = tokenB

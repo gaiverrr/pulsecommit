@@ -480,16 +480,22 @@ final class WebhookDestinationTests: XCTestCase {
     }
 
     func test_draftValidationShowsConfigurationErrorMessages() {
-        XCTAssertNil(WebhookSettingsDraft.empty.validationMessage)
+        XCTAssertNil(WebhookSettingsDraft.empty.validationError)
         XCTAssertEqual(
-            WebhookSettingsDraft(endpoint: "http://hooks.example.com/x", token: "", tokenHeader: "Authorization").validationMessage,
-            WebhookConfigurationError.insecureScheme.localizedDescription
+            WebhookSettingsDraft(endpoint: "http://hooks.example.com/x", token: "", tokenHeader: "Authorization").validationError,
+            .insecureScheme
         )
         XCTAssertEqual(
-            WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: "", tokenHeader: "Content-Type").validationMessage,
-            WebhookConfigurationError.reservedHeaderName.localizedDescription
+            WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: "", tokenHeader: "Content-Type").validationError,
+            .reservedHeaderName
         )
-        XCTAssertNil(WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: "", tokenHeader: "").validationMessage)
+        XCTAssertNil(WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: "", tokenHeader: "").validationError)
+        let model = WebhookDestinationModel(
+            initialDraft: WebhookSettingsDraft(endpoint: "http://hooks.example.com/x", token: "", tokenHeader: "Authorization"),
+            sendTest: { _, _ in 200 }
+        )
+        XCTAssertEqual(model.endpointValidationMessage, WebhookConfigurationError.insecureScheme.localizedDescription)
+        XCTAssertNil(model.tokenValidationMessage)
     }
 
     func test_tokenFormattingNeverRevealsWholeToken() {

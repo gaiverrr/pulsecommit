@@ -244,6 +244,14 @@ final class PreferencesStore {
         }
     }
 
+    var webhookExportEnabledIsSet: Bool {
+        defaults.object(forKey: Key.webhookExportEnabled) != nil
+    }
+
+    func initializeWebhookExportEnabled(_ value: Bool) {
+        defaults.set(value, forKey: Key.webhookExportEnabled)
+    }
+
     var webhookPausedByInvalidEdit: Bool {
         get { defaults.bool(forKey: Key.webhookPausedByInvalidEdit) }
         set { defaults.set(newValue, forKey: Key.webhookPausedByInvalidEdit) }
