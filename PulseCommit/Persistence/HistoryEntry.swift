@@ -45,9 +45,7 @@ final class HistoryEntry {
     var errorMessage: String?
     /// Structured kind tag for the failure recorded in `errorMessage`.
     /// Used by UI layers to make typed decisions (e.g. session-expiry banner)
-    /// without substring-matching on the human-readable error text. Persisted
-    /// as `String?` so SwiftData lightweight migration handles the schema bump
-    /// without a `VersionedSchema`.
+    /// without substring-matching on the human-readable error text.
     ///
     /// Known values: `"sessionExpired"`. New kinds can be added additively.
     var errorKind: String?
@@ -55,6 +53,7 @@ final class HistoryEntry {
     var githubCommitURLString: String?
     var githubBranch: String?
     var telegramMessageReference: String?
+    var webhookReference: String?
 
     init(
         id: UUID = UUID(),
@@ -68,7 +67,8 @@ final class HistoryEntry {
         githubCommitSha: String? = nil,
         githubCommitURLString: String? = nil,
         githubBranch: String? = nil,
-        telegramMessageReference: String? = nil
+        telegramMessageReference: String? = nil,
+        webhookReference: String? = nil
     ) {
         self.id = id
         self.startedAt = startedAt
@@ -82,6 +82,7 @@ final class HistoryEntry {
         self.githubCommitURLString = githubCommitURLString
         self.githubBranch = githubBranch
         self.telegramMessageReference = telegramMessageReference
+        self.webhookReference = webhookReference
     }
 
     // MARK: Derived accessors

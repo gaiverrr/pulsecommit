@@ -12,9 +12,11 @@ struct HomeContainerView: View {
     @State private var livePreview: HomeLivePreviewModel?
     @State private var githubConfigured: Bool = false
     @State private var telegramConfigured: Bool = false
+    @State private var webhookConfigured: Bool = false
     @State private var healthPermissionNoticeDismissed: Bool = false
     @State private var recentCommits: [HomeView.RecentCommitRow] = []
     @State private var recentCommitsBranchHint: String?
+    @State private var latestEntry: HistoryEntrySnapshot?
 
     var body: some View {
         Group {
@@ -31,6 +33,7 @@ struct HomeContainerView: View {
                     healthPermissionNoticeDismissed: healthPermissionNoticeDismissed,
                     githubConfigured: githubConfigured,
                     telegramConfigured: telegramConfigured,
+                    webhookConfigured: webhookConfigured,
                     onGrantHealth: {
                         Task { @MainActor in
                             do {
@@ -66,6 +69,9 @@ struct HomeContainerView: View {
                         destinationsPath = [.github]
                         selectedTab = .destinations
                     },
+                    onOpenEntry: { id in
+                        latestEntry = try? container.history.entry(id: id)
+                    },
                     onSelectPeriod: { period in
                         viewModel.currentPeriod = period
                         container.preferences.selectedPeriod = period.storageKey
@@ -85,6 +91,18 @@ struct HomeContainerView: View {
                         onDecline: { viewModel.declinePendingConsent() }
                     )
                     .presentationDetents([.large])
+                }
+                .sheet(item: $latestEntry) { entry in
+                    NavigationStack {
+                        HistoryDetailView(entry: entry)
+                            .navigationTitle("Run details")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") { latestEntry = nil }
+                                }
+                            }
+                    }
                 }
                 .onChange(of: viewModel.phase) { _, newPhase in
                     refreshState()
@@ -133,6 +151,7 @@ struct HomeContainerView: View {
         let ids = await IntentRunner.configuredSinkIds(container)
         githubConfigured = ids.contains("github")
         telegramConfigured = ids.contains("telegram")
+        webhookConfigured = ids.contains(WebhookDestinationSink.sinkID)
     }
 
     private func loadRecentCommits() -> [HomeView.RecentCommitRow] {

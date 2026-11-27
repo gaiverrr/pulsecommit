@@ -8,13 +8,16 @@ actor Orchestrator {
     struct RunResult: Equatable, Sendable {
         let status: HistoryEntry.Status
         let coverageError: HealthHistoryCoverageError?
+        let entryId: UUID?
 
         init(
             status: HistoryEntry.Status,
-            coverageError: HealthHistoryCoverageError? = nil
+            coverageError: HealthHistoryCoverageError? = nil,
+            entryId: UUID? = nil
         ) {
             self.status = status
             self.coverageError = coverageError
+            self.entryId = entryId
         }
 
         static let success = RunResult(status: .success)
@@ -41,6 +44,7 @@ actor Orchestrator {
     private let pipeline: SnapshotPipeline
     private let sinks: [any Sink]
     private let historyStore: HistoryStore
+    private var lastRecordedEntryId: UUID?
     private let clock: @Sendable () -> Date
     private let isProtectedDataAvailable: @Sendable () async -> Bool
     private let runGate: ExportRunGate
@@ -115,7 +119,7 @@ actor Orchestrator {
         // a fresh Orchestrator per run anyway. The shared gate is the only
         // mutual exclusion across Home and App Intents entry points.
         guard await runGate.tryBegin() else {
-            let status = await record(
+            let appended = await append(
                 startedAt: clock(),
                 finishedAt: clock(),
                 status: .failed,
@@ -124,16 +128,18 @@ actor Orchestrator {
                 errorMessage: ExportAlreadyRunningError().errorDescription,
                 errorKind: HistoryErrorKind.exportAlreadyRunning
             )
-            return RunResult(status: status)
+            return RunResult(status: appended.status, entryId: appended.entryId)
         }
         var coverageError: HealthHistoryCoverageError?
+        lastRecordedEntryId = nil
         let status = await execute(
             request,
             progress: progress,
             onCoverageFailure: { coverageError = $0 }
         )
         await runGate.end()
-        return RunResult(status: status, coverageError: coverageError)
+        let entryId = status == .success ? nil : lastRecordedEntryId
+        return RunResult(status: status, coverageError: coverageError, entryId: entryId)
     }
 
     private func execute(
@@ -463,6 +469,12 @@ actor Orchestrator {
         } else {
             telegramRef = nil
         }
+        let webhookRef: String?
+        if case .success(let ref, _) = sinkResults[WebhookDestinationSink.sinkID] {
+            webhookRef = ref
+        } else {
+            webhookRef = nil
+        }
 
         let advancesCursor: Bool
         switch request.mode {
@@ -492,7 +504,8 @@ actor Orchestrator {
                         githubCommitSha: githubSha,
                         githubCommitURLString: githubURL,
                         githubBranch: githubBranch,
-                        telegramMessageReference: telegramRef
+                        telegramMessageReference: telegramRef,
+                        webhookReference: webhookRef
                     )
                     try store.appendAndAdvanceCursor(entry, cursor: nextCursor)
                 }
@@ -508,7 +521,8 @@ actor Orchestrator {
                         githubCommitSha: githubSha,
                         githubCommitURLString: githubURL,
                         githubBranch: githubBranch,
-                        telegramMessageReference: telegramRef
+                        telegramMessageReference: telegramRef,
+                        webhookReference: webhookRef
                     )
                     try store.append(entry)
                 }
@@ -542,10 +556,40 @@ actor Orchestrator {
         githubCommitURLString: String? = nil,
         telegramMessageReference: String? = nil
     ) async -> HistoryEntry.Status {
+        let appended = await append(
+            startedAt: startedAt,
+            finishedAt: finishedAt,
+            status: status,
+            sinkIds: sinkIds,
+            daysCovered: daysCovered,
+            errorMessage: errorMessage,
+            errorKind: errorKind,
+            githubCommitSha: githubCommitSha,
+            githubCommitURLString: githubCommitURLString,
+            telegramMessageReference: telegramMessageReference
+        )
+        lastRecordedEntryId = appended.entryId
+        return appended.status
+    }
+
+    private func append(
+        startedAt: Date,
+        finishedAt: Date,
+        status: HistoryEntry.Status,
+        sinkIds: [String],
+        daysCovered: [String],
+        errorMessage: String? = nil,
+        errorKind: String? = nil,
+        githubCommitSha: String? = nil,
+        githubCommitURLString: String? = nil,
+        telegramMessageReference: String? = nil
+    ) async -> (status: HistoryEntry.Status, entryId: UUID?) {
         let store = historyStore
         do {
-            try await MainActor.run {
+            let entryId = try await MainActor.run { () -> UUID? in
+                let id = UUID()
                 let entry = HistoryEntry(
+                    id: id,
                     startedAt: startedAt,
                     finishedAt: finishedAt,
                     status: status,
@@ -558,11 +602,12 @@ actor Orchestrator {
                     telegramMessageReference: telegramMessageReference
                 )
                 try store.append(entry)
+                return store.isNoOp ? nil : id
             }
-            return status
+            return (status, entryId)
         } catch {
             orchestratorLogger.error("failed to append history entry (status=\(String(describing: status), privacy: .public)): \(error.localizedDescription, privacy: .public)")
-            return status
+            return (status, nil)
         }
     }
 

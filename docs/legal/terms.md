@@ -1,6 +1,6 @@
 ## Terms of Use
 
-Last updated: 2026-11-22.
+Last updated: 2026-11-26.
 
 By installing or using Pulse Commit, you agree to the terms below.
 
@@ -10,7 +10,7 @@ Pulse Commit is free. Installing it grants you a non-transferable, non-exclusive
 
 ## No warranty
 
-Pulse Commit is provided "as is" and "as available", without warranty of any kind, express or implied. The developer does not warrant that the app will be uninterrupted, error-free, or that exports will succeed for every Apple Health configuration or every GitHub or Telegram account state.
+Pulse Commit is provided "as is" and "as available", without warranty of any kind, express or implied. The developer does not warrant that the app will be uninterrupted, error-free, or that exports will succeed for every Apple Health configuration or every GitHub or Telegram account state or webhook endpoint.
 
 ## Liability
 

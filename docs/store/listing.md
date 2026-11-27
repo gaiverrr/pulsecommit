@@ -1,18 +1,27 @@
-# App Store Connect listing — Pulse Commit v1.0
+# App Store Connect listing — Pulse Commit v1.0.2
 
-App Store Connect metadata for version 1.0. Version 1.0 is free, with no trial, in-app purchase, or Pro tier.
+App Store Connect metadata for version 1.0.2 (name and subtitle change, Webhook destination). Version 1.0 is free, with no trial, in-app purchase, or Pro tier.
 
 ## App Name
 
-Pulse Commit
+Pulse Commit: Health Export
 
 ## Subtitle
 
-Apple Health export to GitHub
+Apple Health for AI agents
 
 ## Promotional Text
 
-Free, no export limit. Daily Apple Health exports as JSON, Markdown and GPX to your own Telegram chat or GitHub repo. No backend, no analytics, open source.
+Daily Apple Health exports for your own AI agent as JSON and Markdown, via Telegram, GitHub or webhook. Free, no backend, no analytics, open source.
+
+## What's New (1.0.2)
+
+- New Webhook destination: each exported day is sent as one JSON POST to an HTTPS URL you own, with an optional token. Use it with any agent, automation tool or script that accepts a webhook.
+- Shortcuts exports can target "Webhook only" or "All configured destinations".
+- The Home export button no longer shifts while an export runs.
+- A failed export's reason opens its History entry.
+- Destinations you have not configured show OFF.
+- App renamed to Pulse Commit: Health Export.
 
 ## What's New (1.0.1)
 
@@ -22,31 +31,33 @@ Free, no export limit. Daily Apple Health exports as JSON, Markdown and GPX to y
 
 ## Description
 
-Your Apple Health, committed daily to your own GitHub repo.
+Daily Apple Health exports for your own AI agent, or any script or service that reads JSON.
 
-Pulse Commit reads the Apple Health categories you select and exports them to destinations you configure: a GitHub repository, a Telegram chat, or both.
+Pulse Commit sends the Apple Health categories you select to Telegram, a GitHub repository or your own webhook. The agent is yours; the app has no backend. Exports are JSON and Markdown, with GPX for routes.
 
 WHAT IT DOES
 
 1. Request read-only access to the Apple Health categories you choose.
-2. Connect Telegram with a bot token and chat ID, or connect GitHub through OAuth Device Flow and select a repository.
+2. Connect Telegram with a bot token and chat ID, connect GitHub through OAuth Device Flow and select a repository, or add a webhook URL.
 3. Review the destination-specific disclosure, then export.
 
-Each successful GitHub delivery creates a new commit containing summary.json and summary.md. It also includes samples/*.json for enabled categories with readable samples, workouts/*.json for workouts present, and routes/*.gpx only for workouts with route data. Re-exporting the same day creates another commit. Every JSON file carries schema_version 1.0.
+Each successful GitHub delivery creates a new commit with summary.json and summary.md, plus samples/*.json for enabled categories, workouts/*.json for workouts present, and routes/*.gpx for workouts with route data. Every JSON file has schema_version 1.0.
 
-Telegram exports contain a Markdown summary and ZIP attachment. Its setup screen can send a clearly labeled sample message before any Health export.
+Webhook exports are one JSON POST per exported day to an HTTPS URL you own, sent up to 3 times in total on network errors, 408, 429 or 5xx, with one Idempotency-Key. It has an optional token, sent as Authorization: Bearer or in a header you name. The body holds summary.json (with workout details and State of Mind), the summary.md text and a file manifest; raw samples, workout files and routes are not sent. Redirects and local network addresses are refused.
 
-An optional, separate consent can send one text-only Telegram message after a finished workout is saved to Apple Health. Pulse Commit checks a rolling 72-hour window after the current opt-in time and locally deduplicates by workout. These messages omit routes, GPS points, raw heart-rate samples, custom zones, full-day totals, ZIP files and JSON. iPhone lock, sync, network and background scheduling can delay delivery. An uncertain request is not resent automatically; manual retry warns about possible duplication.
+Telegram exports contain a Markdown summary and ZIP attachment. Its setup screen can send a labeled sample message before any export.
 
-When both destinations are enabled, one may receive data even if the overall run fails because the other destination failed. Retrying can create another GitHub commit or repeat a Telegram message and ZIP that already arrived. History shows the overall result.
+An optional, separate consent can send one text-only Telegram message after a finished workout is saved to Apple Health. These messages omit routes, GPS points, raw heart-rate samples, custom zones, full-day totals, ZIP files and JSON. iPhone lock, sync, network and background scheduling can delay delivery. An uncertain request is not resent automatically; manual retry warns about possible duplication.
+
+When several destinations are enabled, one may receive data even if the overall run fails because another destination failed. Retrying can create another GitHub commit, repeat a Telegram message and ZIP that already arrived, or deliver a webhook request again. History shows the overall result.
 
 PRIVACY
 
-Health data is read on-device and sent only for manual exports you trigger or automatic finished-workout delivery you separately authorize. Tokens stay in Apple Keychain. Pulse Commit has no developer backend, analytics, crash reporter, advertising SDK, or AI integration.
+Health data is read on-device and sent only for manual exports you trigger or automatic finished-workout delivery you separately authorize. Tokens stay in Apple Keychain. Pulse Commit has no developer backend, analytics, crash reporter, advertising SDK, or built-in AI. An AI agent receives data only if you point a destination at one. If your agent uses a third-party AI service, that service receives what you send. Pulse Commit does not control it.
 
-The app contacts api.github.com, GitHub's device-flow endpoints on github.com, and api.telegram.org. It does not send Health data to the developer.
+The app contacts api.github.com, GitHub's device-flow endpoints on github.com, api.telegram.org, and the webhook host you enter. It does not send Health data to the developer.
 
-Repository collaborators and readers may see GitHub exports. Chat members and bot operators may see or process Telegram exports. Remote copies remain until you delete them with the destination service. Resetting Pulse Commit removes local data and consent receipts; it does not delete remote commits or messages.
+Repository collaborators and readers may see GitHub exports. Chat members and bot operators may see or process Telegram exports. The operator of your webhook server may see and keep webhook exports. Remote copies remain until you delete them with the destination service. Resetting Pulse Commit removes local data and consent receipts; it does not delete remote commits, messages or webhook data.
 
 AUTOMATION
 
@@ -60,9 +71,9 @@ Approve destination consent in Pulse Commit before an automation can export. Loc
 
 PRICE
 
-Pulse Commit 1.0 is free. There is no export limit, in-app purchase, or subscription. Every feature, including multi-day windows, custom backfill, and automatic finished-workout messages, is available to everyone.
+Pulse Commit 1.0 is free. There is no export limit, in-app purchase, or subscription.
 
-If you don't have a GitHub account or a Telegram bot, this app is not for you. The destinations are yours; Pulse Commit does not host them.
+If you don't have a GitHub repo, a Telegram bot or your own HTTPS endpoint, this isn't for you. The destinations are yours; Pulse Commit does not host them.
 
 Requires iOS 17.0 or later. State of Mind export is available on iOS 18 or later.
 
@@ -71,7 +82,7 @@ Support: hi@pulsecommit.app
 ## Keywords
 
 ```
-telegram,json,healthkit,data,auto,backup,gpx,shortcuts,quantified,self,workout,sleep,hrv,git,steps
+telegram,webhook,llm,json,healthkit,github,gpx,shortcuts,markdown,hrv,sleep,steps,automation,backup
 ```
 
 ## URLs
@@ -103,7 +114,7 @@ Reference: [Apple — Age ratings values and definitions](https://developer.appl
 
 ## Privacy nutrition
 
-App Privacy answers: **NOT VERIFIED**. The repository shows no developer backend and the developer does not receive Health data, but the Account Holder must answer the current questionnaire using Apple's definitions and account evidence. User-directed transfers to GitHub and Telegram must be considered. Do not treat this draft as a completed `Data Not Collected` declaration.
+App Privacy answers: **NOT VERIFIED**. The repository shows no developer backend and the developer does not receive Health data, but the Account Holder must answer the current questionnaire using Apple's definitions and account evidence. User-directed transfers to GitHub, Telegram and the webhook endpoint must be considered. Do not treat this draft as a completed `Data Not Collected` declaration.
 
 Candidate explanation for the Account Holder to validate before use:
 

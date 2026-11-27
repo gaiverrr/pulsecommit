@@ -7,6 +7,7 @@
 #   Packages/HealthCore/Sources/       error strings surfaced to History UI
 #   docs/legal/                        hosted policy markdown
 #   docs/store/                        App Store Connect metadata
+#   marketing/video/src/               hero animation copy
 #
 # Exits 0 if clean, 1 if any forbidden word is found.
 
@@ -37,6 +38,7 @@ PATHS=(
   Packages/HealthCore/Sources
   docs/legal
   docs/store
+  marketing/video/src
 )
 
 hits=0

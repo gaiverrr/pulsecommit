@@ -2,7 +2,7 @@ import XCTest
 @testable import PulseCommit
 
 final class InfoPlistTests: XCTestCase {
-    private let expectedHealthUsage = "Pulse Commit reads Apple Health data you select for manual exports to your GitHub repository or Telegram chat. If you separately turn on finished-workout messages, it also reads recently saved workouts in the background and sends one text summary to the Telegram chat and optional topic you approve."
+    private let expectedHealthUsage = "Pulse Commit reads Apple Health data you select for manual exports to your GitHub repository, Telegram chat or HTTPS webhook. If you separately turn on finished-workout messages, it also reads recently saved workouts in the background and sends one text summary to the Telegram chat and optional topic you approve."
 
     private func hostInfoDictionary() -> [String: Any] {
         if let testHostPath = Bundle(for: type(of: self)).infoDictionary?["BUNDLE_LOADER"] as? String {
@@ -30,7 +30,7 @@ final class InfoPlistTests: XCTestCase {
     func test_healthUpdateUsageDescription_statesAppNeverWrites() {
         let info = hostInfoDictionary()
         let value = info["NSHealthUpdateUsageDescription"] as? String
-        XCTAssertEqual(value, "Pulse Commit does not write to Apple Health. It only reads the data you select so you can export it to your GitHub repository or Telegram chat.")
+        XCTAssertEqual(value, "Pulse Commit does not write to Apple Health. It only reads the data you select so you can export it to your GitHub repository, Telegram chat or HTTPS webhook.")
     }
 
     func test_queriesSchemesDeclareShortcuts_soAddToShortcutsButtonWorks() {

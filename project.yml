@@ -72,8 +72,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: PulseCommit/PulseCommit.entitlements
-        CURRENT_PROJECT_VERSION: "8"
-        MARKETING_VERSION: "1.0.1"
+        CURRENT_PROJECT_VERSION: "10"
+        MARKETING_VERSION: "1.0.2"
       configs:
         # Debug keeps the sideload identity so installed dev builds keep
         # their Keychain tokens and settings; Release is the App Store id.
@@ -88,8 +88,8 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDisplayName: Pulse Commit
         ITSAppUsesNonExemptEncryption: false
-        NSHealthShareUsageDescription: "Pulse Commit reads Apple Health data you select for manual exports to your GitHub repository or Telegram chat. If you separately turn on finished-workout messages, it also reads recently saved workouts in the background and sends one text summary to the Telegram chat and optional topic you approve."
-        NSHealthUpdateUsageDescription: "Pulse Commit does not write to Apple Health. It only reads the data you select so you can export it to your GitHub repository or Telegram chat."
+        NSHealthShareUsageDescription: "Pulse Commit reads Apple Health data you select for manual exports to your GitHub repository, Telegram chat or HTTPS webhook. If you separately turn on finished-workout messages, it also reads recently saved workouts in the background and sends one text summary to the Telegram chat and optional topic you approve."
+        NSHealthUpdateUsageDescription: "Pulse Commit does not write to Apple Health. It only reads the data you select so you can export it to your GitHub repository, Telegram chat or HTTPS webhook."
         LSApplicationQueriesSchemes:
           - shortcuts
         UILaunchScreen: {}
@@ -126,7 +126,61 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GCC_TREAT_WARNINGS_AS_ERRORS: NO
 
+  PulseCommitMarketingUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PulseCommitMarketingUITests
+    dependencies:
+      - target: PulseCommit
+    settings:
+      base:
+        TEST_TARGET_NAME: PulseCommit
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+        GCC_TREAT_WARNINGS_AS_ERRORS: NO
+        TARGETED_DEVICE_FAMILY: "1"
+
+  PulseCommitUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PulseCommitUITests
+    dependencies:
+      - target: PulseCommit
+    settings:
+      base:
+        TEST_TARGET_NAME: PulseCommit
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+        GCC_TREAT_WARNINGS_AS_ERRORS: NO
+        TARGETED_DEVICE_FAMILY: "1"
+
 schemes:
+  PulseCommitMarketing:
+    build:
+      targets:
+        PulseCommit: all
+        PulseCommitMarketingUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - PulseCommitMarketingUITests
+    run:
+      config: Debug
+  PulseCommitUI:
+    build:
+      targets:
+        PulseCommit: all
+        PulseCommitUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - PulseCommitUITests
+    run:
+      config: Debug
   PulseCommit:
     build:
       targets:

@@ -42,7 +42,7 @@ One token, sent with every request. The URL may be public; without the token the
 - Redirects are refused (they would send data and the token to another host).
 - `EphemeralAPISession`, 30 s timeout.
 - Headers: `Content-Type`, `User-Agent: PulseCommit/<version>`, `Idempotency-Key` and `X-Request-ID` (same value), then the token header. The token header cannot override reserved headers.
-- Success is any 2xx. Retries (3 attempts, short backoff) on transport errors, 408, 429 and 5xx, honouring `Retry-After`. Other 4xx fail immediately with the status code.
+- Success is any 2xx. Retries (3 attempts, 1 s then 2 s backoff) on transport errors, 408, 429 and 5xx, honouring `Retry-After` up to 5 s per retry, so one day's retry waits total at most 10 s and fit the App Intents background budget. Other 4xx fail immediately with the status code.
 - Multi-day runs are paced (about one request every 2 s) to stay under typical 30 requests/minute limits.
 - Idempotency key: `pc-<date>-<first 12 hex of SHA-256(summary.json)>`. Stable across retries within one run; a user re-run creates a new key. Receivers that want one record per day should upsert on `date`.
 
@@ -67,7 +67,7 @@ One token, sent with every request. The URL may be public; without the token the
 ## Code
 
 HealthCore (URLProtocol-stub tests, test-first):
-- `Sinks/Webhook/WebhookSink.swift` (`id = "webhook"`), `WebhookPayload` encoder, `WebhookEndpointValidator`, `WebhookSinkError: LocalizedError` (status codes only, never URL path or token).
+- `Sinks/Webhook/WebhookSink.swift` (`id = "webhook"`), `WebhookPayload` encoder, `WebhookConfiguration` (validates the URL, header name and token; rejects local network hosts), `WebhookSinkError: LocalizedError` (status codes only, never URL path or token).
 
 App:
 - Destinations → Webhook screen: URL, token (Generate / Paste / Copy), header name, Send test, last result.
@@ -84,11 +84,12 @@ Tests to write first:
 
 ## Reference receiver and App Review endpoint
 
-A small open-source Cloudflare Worker in a separate repository (not `pulsecommit-web`):
+A small open-source Cloudflare Worker in a separate repository (not `pulsecommit-web`), https://github.com/gaiverrr/pulsecommit-webhook-receiver. Its `review` environment is the App Review endpoint:
 - checks the token, validates that the body is the envelope above, returns `200 {"ok": true, "bytes": N}` and discards the body;
 - no storage and no logging of bodies or headers (Workers Logs and Logpush off for this Worker);
 - the review token is a Worker secret, never in Git; it goes to App Review notes only;
 - the same code is published as the "minimal receiver" recipe, with optional variants that store to R2 or forward to an agent.
+- an `inbox` environment of the same code keeps the latest 50 requests in KV for 7 days for development testing; it is never the App Review endpoint.
 
 The App Review note says the developer runs a test endpoint that accepts and immediately discards requests, so the "developer receives no data" claim stays true. Deploy only after owner approval.
 

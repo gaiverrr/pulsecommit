@@ -13,6 +13,7 @@ struct HomeView: View {
     var healthPermissionNoticeDismissed: Bool = false
     var githubConfigured: Bool = false
     var telegramConfigured: Bool = false
+    var webhookConfigured: Bool = false
     var onGrantHealth: () -> Void = {}
     var onOpenHealthSettings: () -> Void = {}
     var onDismissHealthPermissionNotice: () -> Void = {}
@@ -20,13 +21,14 @@ struct HomeView: View {
     var onConnectTelegram: () -> Void = {}
     var onReconnectGitHub: () -> Void = {}
     var onCustomRange: () -> Void = {}
+    var onOpenEntry: (UUID) -> Void = { _ in }
     // Called when the user picks a new period from the chip-row Menu.
     // HomeContainerView persists this to PreferencesStore and updates the
     // viewModel.currentPeriod. The Menu does NOT dispatch an export.
     var onSelectPeriod: (HomeViewModel.Period) -> Void = { _ in }
 
     var isEmptyState: Bool {
-        !githubConfigured && !telegramConfigured
+        !githubConfigured && !telegramConfigured && !webhookConfigured
     }
 
     struct RecentCommitRow: Identifiable, Equatable {
@@ -87,7 +89,7 @@ struct HomeView: View {
                 Text("Welcome to Pulse Commit")
                     .font(.pcTitle)
                     .foregroundStyle(Theme.text)
-                Text("Export Apple Health data to a Telegram chat or GitHub repo. Tokens stay in Keychain. Health data is sent only during an export; a Telegram setup test sends the sample message you approve.")
+                Text("Export Apple Health data to a Telegram chat, GitHub repo or webhook. Tokens stay in Keychain. Health data is sent only during an export; a Telegram setup test sends the sample message you approve.")
                     .font(.pcBody)
                     .foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -282,12 +284,9 @@ struct HomeView: View {
         Task { await viewModel.runExport(sinkOverride: nil, modeOverride: mode) }
     }
 
-    // Locked minimum height for the big Export button. Its inner content
-    // changes per phase — running adds a 3pt progress bar, done/error swap
-    // the sub-label — and without a floor the RECENT COMMITS card below
-    // shifts a few points on every phase transition. 232pt now fits the
-    // tallest state (running, with the embedded chip row + dashed divider
-    // added below the top zone) at iPhone widths.
+    // Every phase renders the same slots (two-line sub-label, stage line,
+    // progress bar) and only toggles their opacity, so the natural height is
+    // phase-independent; this floor only guards against a shorter future layout.
     static let bigButtonMinHeight: CGFloat = 232
 
     // ─────────────────────────────────────────────────────────────────────
@@ -300,10 +299,20 @@ struct HomeView: View {
     //     dispatch an export.
     // Both zones share the lime background, rounded shape, and accent glow.
     // ─────────────────────────────────────────────────────────────────────
-    private var bigButton: some View {
+    static let bigButtonCoordinateSpace = "home.bigButton"
+
+    var bigButton: some View {
         VStack(alignment: .leading, spacing: 0) {
             topZone
             dashedDivider
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: BigButtonDividerMinYKey.self,
+                            value: geo.frame(in: .named(Self.bigButtonCoordinateSpace)).minY
+                        )
+                    }
+                )
             bigButtonChipRow
         }
         .padding(20)
@@ -322,6 +331,7 @@ struct HomeView: View {
         // big button. Drop shadows on cards are forbidden by the design spec;
         // only the home Export button gets a glow.
         .shadow(color: Theme.accentSoft, radius: 24, x: 0, y: 0)
+        .coordinateSpace(.named(Self.bigButtonCoordinateSpace))
         .animation(.easeInOut(duration: 0.25), value: viewModel.phase)
     }
 
@@ -340,24 +350,93 @@ struct HomeView: View {
         // .sensoryFeedback (replacing the imperative UIImpactFeedbackGenerator),
         // so the medium-impact tap is felt the moment the orchestrator flips
         // to .running.
+        exportButton
+            .overlayPreferenceValue(SubLabelBoundsKey.self) { anchor in
+                GeometryReader { geo in
+                    if case .openEntry(let entryId) = Self.subLabelAction(for: viewModel.phase),
+                       let anchor {
+                        let rect = Self.subLabelHitFrame(for: geo[anchor])
+                        Button {
+                            onOpenEntry(entryId)
+                        } label: {
+                            Color.clear.contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: rect.width, height: rect.height)
+                        .contentShape(Rectangle())
+                        .background(Self.hitAreaReporter("subLabelHitArea"))
+                        .position(x: rect.midX, y: rect.midY)
+                        .accessibilityLabel(Text(buttonSubLabel ?? ""))
+                        .accessibilityHint(Text("Opens this run in History"))
+                        .accessibilityIdentifier("home.bigButton.subLabel")
+                    }
+                }
+            }
+    }
+
+    private var exportButton: some View {
         Button {
             guard viewModel.phase != .running else { return }
             dispatch(nil)
         } label: {
-            topZoneContent
+            VStack(alignment: .leading, spacing: 14) {
+                topZoneContent
+                subLabelText
+                progressZone
+            }
+            .padding(.bottom, 14)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .contentShape(Rectangle())
+            .background(Self.hitAreaReporter("exportButton"))
         }
         .buttonStyle(HeroPressStyle())
         .disabled(isRunning)
         .accessibilityLabel(Text(buttonTitle))
         .accessibilityHint(Text(Self.accessibilityHintText(for: viewModel, buttonSubLabel: buttonSubLabel)))
         .accessibilityIdentifier("home.bigButton.topZone")
+        .animation(.easeInOut(duration: 0.18), value: viewModel.stageLabel)
         .sensoryFeedback(.impact(weight: .medium), trigger: viewModel.phase) { old, new in
-            // Fire only on the user-initiated idle→running transition. Skip
-            // running→done/error so we don't double-tap the user after they
-            // already felt the activation haptic.
             if case .idle = old, case .running = new { return true }
             if case .error = old, case .running = new { return true }
             return false
+        }
+    }
+
+    static func subLabelHitFrame(for subLabel: CGRect) -> CGRect {
+        CGRect(x: subLabel.minX, y: subLabel.minY, width: subLabel.width, height: subLabel.height + 28)
+    }
+
+    static func subLabelAction(for phase: HomeViewModel.Phase) -> SubLabelAction {
+        switch phase {
+        case .error(_, let entryId):
+            guard let entryId else { return .none }
+            return .openEntry(entryId)
+        case .running:
+            return .none
+        case .idle, .done:
+            return .export
+        }
+    }
+
+    private var subLabelText: some View {
+        Text(buttonSubLabel ?? " ")
+            .font(.pcMonoDetail)
+            .foregroundStyle(Color.black.opacity(0.65))
+            .lineLimit(2, reservesSpace: true)
+            .truncationMode(.tail)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .opacity(buttonSubLabel == nil ? 0 : 1)
+            .anchorPreference(key: SubLabelBoundsKey.self, value: .bounds) { $0 }
+            .background(Self.hitAreaReporter("subLabelText"))
+    }
+
+    private static func hitAreaReporter(_ name: String) -> some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: BigButtonHitAreasKey.self,
+                value: [name: geo.frame(in: .named(bigButtonCoordinateSpace))]
+            )
         }
     }
 
@@ -368,65 +447,76 @@ struct HomeView: View {
                     .font(.pcCaptionMono)
                     .foregroundStyle(Color.black.opacity(0.55))
                 Spacer()
-                if case .running = viewModel.phase {
-                    PCStatusDot(color: Color.black, pulsing: true)
-                } else {
+                ZStack(alignment: .topTrailing) {
                     Image(systemName: "arrow.up.circle")
                         .font(.system(size: 30, weight: .semibold))
                         .foregroundStyle(Color.black)
+                        .opacity(isRunning ? 0 : 1)
+                    PCStatusDot(color: Color.black, pulsing: isRunning)
+                        .opacity(isRunning ? 1 : 0)
+                        .accessibilityHidden(!isRunning)
                 }
             }
             Text(buttonTitle)
                 .font(.pcBigButton)
                 .foregroundStyle(Color.black)
-            if let sub = buttonSubLabel {
-                Text(sub)
-                    .font(.pcMonoDetail)
-                    .foregroundStyle(Color.black.opacity(0.65))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if case .running = viewModel.phase {
-                // Live progress line, split into three parts so only the category name
-                // fades on change while the prefix and counter update in place.
-                HStack(spacing: 0) {
-                    Text(viewModel.stagePrefix)
-                        .font(.pcCaptionMono)
-                        .foregroundStyle(Color.black.opacity(0.55))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    if let label = viewModel.stageLabel {
-                        Text(label)
-                            .font(.pcCaptionMono)
-                            .foregroundStyle(Color.black.opacity(0.55))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .transition(.opacity)
-                            .id(label)
-                    }
-                    if let counter = viewModel.stageCounter {
-                        Text(" \(counter)")
-                            .font(.pcCaptionMono)
-                            .foregroundStyle(Color.black.opacity(0.55))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(Text(viewModel.currentStage))
-                .accessibilityAddTraits(.updatesFrequently)
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.black.opacity(0.15)).frame(height: 3)
-                        Capsule().fill(Color.black).frame(width: geo.size.width * 0.4, height: 3)
-                    }
-                }
-                .frame(height: 3)
-            }
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(.bottom, 14)
-        .animation(.easeInOut(duration: 0.18), value: viewModel.stageLabel)
-        .contentShape(Rectangle())
+    }
+
+    private var progressZone: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            stageLine
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.black.opacity(0.15)).frame(height: 3)
+                    Capsule().fill(Color.black).frame(width: geo.size.width * 0.4, height: 3)
+                }
+            }
+            .frame(height: 3)
+            .accessibilityHidden(true)
+        }
+        .opacity(isRunning ? 1 : 0)
+        .accessibilityHidden(!isRunning)
+    }
+
+    private var stageLine: some View {
+        Text(" ")
+            .font(.pcCaptionMono)
+            .hidden()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .leading) { stageText }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(viewModel.currentStage))
+        .accessibilityAddTraits(.updatesFrequently)
+    }
+
+    private var stageText: some View {
+        HStack(spacing: 0) {
+            Text(viewModel.stagePrefix)
+                .font(.pcCaptionMono)
+                .foregroundStyle(Color.black.opacity(0.55))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if let label = viewModel.stageLabel {
+                Text(label)
+                    .font(.pcCaptionMono)
+                    .foregroundStyle(Color.black.opacity(0.55))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .transition(.opacity)
+                    .id(label)
+            }
+            if let counter = viewModel.stageCounter {
+                Text(" \(counter)")
+                    .font(.pcCaptionMono)
+                    .foregroundStyle(Color.black.opacity(0.55))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
     }
 
     // Dashed hairline implemented with StrokeStyle to honour ui-ux-pro-max's
@@ -551,8 +641,8 @@ struct HomeView: View {
             return nil
         case .done(let at):
             return "Last commit · \(Self.relativeTime(from: at)) · ✓"
-        case .error(let reason):
-            return "Last attempt failed · \(reason)"
+        case .error(let reason, _):
+            return reason
         }
     }
 
@@ -563,6 +653,9 @@ struct HomeView: View {
         // hint announcements during a long export.
         if case .running = viewModel.phase {
             return "Export in progress"
+        }
+        if case .openEntry = subLabelAction(for: viewModel.phase) {
+            return ""
         }
         return buttonSubLabel ?? ""
     }
@@ -834,5 +927,35 @@ struct HeroPressStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
+enum SubLabelAction: Equatable {
+    case openEntry(UUID)
+    case export
+    case none
+}
+
+struct SubLabelBoundsKey: PreferenceKey {
+    static let defaultValue: Anchor<CGRect>? = nil
+
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = value ?? nextValue()
+    }
+}
+
+struct BigButtonHitAreasKey: PreferenceKey {
+    static let defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
+struct BigButtonDividerMinYKey: PreferenceKey {
+    static let defaultValue: CGFloat = -1
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

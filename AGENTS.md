@@ -142,7 +142,7 @@ Reference screenshots: `design_handoff_pulse_commit/screenshots/`. Home B and Pa
 - **No third-party SDKs beyond ZIPFoundation.** No analytics, no crash reporters, no networking libs. URLSession only.
 - **No editing `.xcodeproj` directly.** Change `project.yml`, run `xcodegen generate`.
 - **No comments explaining what code does.** Names should carry that. Only comment non-obvious *why*.
-- **Privacy is load-bearing.** Read tokens from Keychain (`SecretsStore`) and never log them. The only outbound hosts allowed in production code are `api.github.com`, `github.com` (Device Flow endpoints only: `/login/device/code` and `/login/oauth/access_token`), and `api.telegram.org`.
+- **Privacy is load-bearing.** Read tokens from Keychain (`SecretsStore`) and never log them. The only outbound hosts allowed in production code are `api.github.com`, `github.com` (Device Flow endpoints only: `/login/device/code` and `/login/oauth/access_token`), `api.telegram.org`, and the HTTPS webhook URL the user enters. There is no server of ours.
 - **Schema-versioning matters.** Every JSON file we emit carries `"schema_version": "1.0"`. Treat changes as additive unless we agree to bump the major version.
 
 ## Known footguns (encoded the hard way)
@@ -157,4 +157,4 @@ Reference screenshots: `design_handoff_pulse_commit/screenshots/`. Home B and Pa
 
 ## Out of scope (for v1.0)
 
-iPad / macOS apps, localisation beyond English, background fetch / observer queries, AI analysis inside the app, webhook / generic-git / GitLab / Gitea sinks, family sharing, subscriptions, web companion. These live in §13 of the spec as roadmap hints — do not pre-build for them.
+iPad / macOS apps, localisation beyond English, background fetch / observer queries, AI analysis inside the app, generic-git / GitLab / Gitea sinks, family sharing, subscriptions, web companion. These live in §13 of the spec as roadmap hints — do not pre-build for them.

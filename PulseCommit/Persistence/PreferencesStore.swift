@@ -24,6 +24,8 @@ final class PreferencesStore {
         static let githubInstallationId = "pulse-commit.github.installationId"
         static let githubExportEnabled = "pulse_commit.github.export_enabled"
         static let telegramExportEnabled = "pulse_commit.telegram.export_enabled"
+        static let webhookExportEnabled = "pulse_commit.webhook.export_enabled"
+        static let webhookPausedByInvalidEdit = "pulse_commit.webhook.paused_by_invalid_edit"
         static let automaticWorkoutTelegramEnabled = "pulse_commit.telegram.automatic_workouts_enabled"
         static let automaticWorkoutRegistrationFailed = "pulse_commit.telegram.automatic_workouts_registration_failed"
         static let selectedPeriod = "pulse_commit.home.selected_period"
@@ -170,6 +172,8 @@ final class PreferencesStore {
             Key.githubInstallationId,
             Key.githubExportEnabled,
             Key.telegramExportEnabled,
+            Key.webhookExportEnabled,
+            Key.webhookPausedByInvalidEdit,
             Key.automaticWorkoutTelegramEnabled,
             Key.automaticWorkoutRegistrationFailed,
             Key.selectedPeriod,
@@ -230,6 +234,27 @@ final class PreferencesStore {
             if newValue == false { consentStore?.invalidate(.github) }
             defaults.set(newValue, forKey: Key.githubExportEnabled)
         }
+    }
+
+    var webhookExportEnabled: Bool {
+        get { defaults.bool(forKey: Key.webhookExportEnabled) }
+        set {
+            if newValue == false { consentStore?.invalidate(.webhook) }
+            defaults.set(newValue, forKey: Key.webhookExportEnabled)
+        }
+    }
+
+    var webhookExportEnabledIsSet: Bool {
+        defaults.object(forKey: Key.webhookExportEnabled) != nil
+    }
+
+    func initializeWebhookExportEnabled(_ value: Bool) {
+        defaults.set(value, forKey: Key.webhookExportEnabled)
+    }
+
+    var webhookPausedByInvalidEdit: Bool {
+        get { defaults.bool(forKey: Key.webhookPausedByInvalidEdit) }
+        set { defaults.set(newValue, forKey: Key.webhookPausedByInvalidEdit) }
     }
 
     var telegramExportEnabled: Bool {

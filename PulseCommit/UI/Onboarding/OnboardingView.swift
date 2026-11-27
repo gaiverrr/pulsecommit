@@ -49,7 +49,7 @@ struct OnboardingView: View {
 
             Spacer().frame(height: 24)
 
-            Text("Export Apple Health to your Telegram chat or GitHub repo. Your data stays yours.")
+            Text("Export Apple Health to your Telegram chat, GitHub repo or webhook. Your data stays yours.")
                 .font(.pcBodyLarge)
                 .foregroundStyle(Theme.muted)
 

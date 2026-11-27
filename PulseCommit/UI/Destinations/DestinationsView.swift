@@ -9,6 +9,9 @@ struct DestinationsView: View {
     @State private var githubExportEnabled: Bool = true
     @State private var telegramExportEnabled: Bool = true
     @State private var telegramChatId: String = ""
+    @State private var webhookHost: String?
+    @State private var webhookReady: Bool = false
+    @State private var webhookExportEnabled: Bool = true
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -48,6 +51,24 @@ struct DestinationsView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+
+                            Divider().background(Theme.divider)
+
+                            NavigationLink(value: RootTabView.DestinationsRoute.webhook) {
+                                row(
+                                    icon: .system("arrow.up.forward.app"),
+                                    title: "Webhook",
+                                    badge: "NEW",
+                                    subtitle: webhookHost ?? "POST JSON to your own HTTPS endpoint",
+                                    statusText: webhookStatusText,
+                                    statusColor: webhookStatusColor,
+                                    configured: webhookHost != nil,
+                                    enabled: $webhookExportEnabled,
+                                    onToggle: setWebhookEnabled,
+                                    toggleAccessibilityId: "destinations.webhook.toggle"
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -62,9 +83,12 @@ struct DestinationsView: View {
                     GitHubDestinationView()
                 case .telegram:
                     TelegramDestinationView(onBackToHome: onBackToHome)
+                case .webhook:
+                    WebhookDestinationView()
                 }
             }
             .onAppear(perform: refresh)
+            .onChange(of: container.webhookRevision) { _, _ in refresh() }
         }
     }
 
@@ -94,6 +118,30 @@ struct DestinationsView: View {
         return "chat \(telegramChatId) · \(verbosity)"
     }
 
+    private var webhookStatusText: String {
+        guard webhookHost != nil else { return "● NOT SET" }
+        return webhookReady ? "● CONNECTED" : "● REVIEW"
+    }
+
+    private var webhookStatusColor: Color {
+        guard webhookHost != nil else { return Theme.dim }
+        return webhookReady ? Theme.success : Theme.warn
+    }
+
+    static func toggleBinding(
+        configured: Bool,
+        enabled: Binding<Bool>,
+        onToggle: @escaping (Bool) -> Void
+    ) -> Binding<Bool> {
+        Binding(
+            get: { configured && enabled.wrappedValue },
+            set: { newValue in
+                enabled.wrappedValue = newValue
+                onToggle(newValue)
+            }
+        )
+    }
+
     private enum RowIcon {
         case system(String)
         case asset(String)
@@ -102,6 +150,7 @@ struct DestinationsView: View {
     private func row(
         icon: RowIcon,
         title: String,
+        badge: String? = nil,
         subtitle: String,
         statusText: String,
         statusColor: Color,
@@ -130,9 +179,14 @@ struct DestinationsView: View {
                 .foregroundStyle(Theme.text)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.pcBodyLarge)
-                    .foregroundStyle(Theme.text)
+                HStack(spacing: 6) {
+                    Text(title)
+                        .font(.pcBodyLarge)
+                        .foregroundStyle(Theme.text)
+                    if let badge {
+                        PCPill(text: badge, foreground: Color.black, background: Theme.accent)
+                    }
+                }
                 Text(subtitle)
                     .font(.pcCaption)
                     .foregroundStyle(Theme.muted)
@@ -148,12 +202,10 @@ struct DestinationsView: View {
                     .font(.pcLabel)
                     .tracking(1.2)
                     .foregroundStyle(statusColor)
-                PCToggle(accessibilityLabel: "\(title) export", isOn: Binding(
-                    get: { enabled.wrappedValue },
-                    set: { newValue in
-                        enabled.wrappedValue = newValue
-                        onToggle(newValue)
-                    }
+                PCToggle(accessibilityLabel: "\(title) export", isOn: Self.toggleBinding(
+                    configured: configured,
+                    enabled: enabled,
+                    onToggle: onToggle
                 ))
                 .disabled(!configured)
                 .opacity(configured ? 1 : 0.5)
@@ -177,9 +229,15 @@ struct DestinationsView: View {
         container.preferences.telegramExportEnabled = value
     }
 
+    private func setWebhookEnabled(_ value: Bool) {
+        container.preferences.webhookExportEnabled = value
+        Task { @MainActor in webhookReady = await container.webhookExportIsReady() }
+    }
+
     private func refresh() {
         githubExportEnabled = container.preferences.githubExportEnabled
         telegramExportEnabled = container.preferences.telegramExportEnabled
+        webhookExportEnabled = container.preferences.webhookExportEnabled
         Task { @MainActor in
             let bot = (try? await container.secrets.get("tg_bot_token")) ?? nil ?? ""
             let chat = (try? await container.secrets.get("tg_chat_id")) ?? nil ?? ""
@@ -190,6 +248,8 @@ struct DestinationsView: View {
             let repo = container.preferences.githubRepo ?? ""
             let branch = container.preferences.githubBranch ?? ""
             githubConfigured = !owner.isEmpty && !repo.isEmpty && !branch.isEmpty && hasTokens
+            webhookHost = await container.currentWebhookConfiguration()?.host
+            webhookReady = await container.webhookExportIsReady()
         }
     }
 }

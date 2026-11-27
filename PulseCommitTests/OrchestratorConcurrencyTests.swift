@@ -228,4 +228,55 @@ final class OrchestratorConcurrencyTests: XCTestCase {
         let calls = await acceptedSink.callCount()
         XCTAssertEqual(calls, 1)
     }
+
+    func test_failedRun_resultCarriesItsOwnEntryEvenWhenNewerSuccessExists() async throws {
+        let now = Date(timeIntervalSince1970: 1_776_600_000)
+        let history = try HistoryStore.inMemory()
+        let gate = ExportRunGate()
+        let failing = makeOrchestrator(now: now, sink: CountingSink(id: "github"), history: history, gate: gate)
+        let badRequest = ExportRequest(mode: .lastDayOnly, enabledCategoryIds: [], enabledSinkIds: ["github"])
+
+        let failedResult = await failing.runResult(badRequest)
+        let failedId = try XCTUnwrap(failedResult.entryId)
+
+        let later = makeOrchestrator(now: now.addingTimeInterval(60), sink: CountingSink(id: "github"), history: history, gate: gate)
+        let okResult = await later.runResult(request)
+        XCTAssertEqual(okResult.status, .success)
+
+        let newest = try history.recentEntries(limit: 1).first
+        XCTAssertNotEqual(newest?.id, failedId, "a newer success exists, so the latest row is not the failed one")
+        let looked = try history.entry(id: failedId)
+        XCTAssertEqual(looked?.status, .failed)
+    }
+
+    func test_rejectedOverlappingRun_resultCarriesItsRecordedEntry() async throws {
+        let now = Date(timeIntervalSince1970: 1_776_600_000)
+        let history = try HistoryStore.inMemory()
+        let gate = ExportRunGate()
+        let holdingSink = HoldingSink(id: "github")
+        let first = makeOrchestrator(now: now, sink: holdingSink, history: history, gate: gate)
+        let second = makeOrchestrator(now: now, sink: CountingSink(id: "github"), history: history, gate: gate)
+        let firstRun = Task { await first.runResult(self.request) }
+        var waited = 0
+        while await !holdingSink.hasStarted() {
+            try await Task.sleep(nanoseconds: 10_000_000)
+            waited += 1
+            XCTAssertLessThan(waited, 500)
+        }
+        let rejected = await second.runResult(request)
+        await holdingSink.release()
+        let firstResult = await firstRun.value
+        XCTAssertNil(firstResult.entryId)
+        let id = try XCTUnwrap(rejected.entryId)
+        XCTAssertEqual(try history.entry(id: id)?.errorKind, HistoryErrorKind.exportAlreadyRunning)
+    }
+
+    func test_failedRun_withNoOpStore_hasNoEntryId() async {
+        let now = Date(timeIntervalSince1970: 1_776_600_000)
+        let orchestrator = makeOrchestrator(now: now, sink: CountingSink(id: "github"), history: HistoryStore.noOp(), gate: ExportRunGate())
+        let badRequest = ExportRequest(mode: .lastDayOnly, enabledCategoryIds: [], enabledSinkIds: ["github"])
+        let result = await orchestrator.runResult(badRequest)
+        XCTAssertEqual(result.status, .failed)
+        XCTAssertNil(result.entryId)
+    }
 }

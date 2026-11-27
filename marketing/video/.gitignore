@@ -1,0 +1,4 @@
+node_modules/
+public/screens/
+public/store/
+out/

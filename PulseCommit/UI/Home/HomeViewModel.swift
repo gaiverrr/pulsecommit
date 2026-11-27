@@ -15,7 +15,7 @@ final class HomeViewModel {
         case idle
         case running
         case done(at: Date)
-        case error(reason: String)
+        case error(reason: String, entryId: UUID? = nil)
     }
 
     // The set of period choices a user can pick from the Home big-button
@@ -126,26 +126,7 @@ final class HomeViewModel {
                 return await orchestrator.runResult(request, progress: progress)
             },
             enabledCategoryIds: { container.preferences.enabledCategoryIds },
-            enabledSinkIds: {
-                var ids = Set<String>()
-                let secrets = container.secrets
-                let prefs = container.preferences
-                if prefs.githubExportEnabled,
-                   let owner = prefs.githubOwner,
-                   let repo = prefs.githubRepo,
-                   let branch = prefs.githubBranch,
-                   !owner.isEmpty, !repo.isEmpty, !branch.isEmpty,
-                   await KeychainTokenVault.hasStoredTokens(in: secrets) {
-                    ids.insert("github")
-                }
-                if prefs.telegramExportEnabled,
-                   let bot = (try? await secrets.get("tg_bot_token")) ?? nil,
-                   let chat = (try? await secrets.get("tg_chat_id")) ?? nil,
-                   !bot.isEmpty, !chat.isEmpty {
-                    ids.insert("telegram")
-                }
-                return ids
-            },
+            enabledSinkIds: { await IntentRunner.configuredSinkIds(container) },
             recentHistory: {
                 let entries = (try? container.history.recentEntries(limit: 20)) ?? []
                 return entries.map {
@@ -221,13 +202,13 @@ final class HomeViewModel {
             phase = .done(at: clock())
         case .failed, .paywalled:
             if let coverageError = result.coverageError {
-                phase = .error(reason: coverageError.userMessage)
+                phase = .error(reason: coverageError.userMessage, entryId: result.entryId)
             } else if recentHistoryProvider().first?.errorKind == HistoryErrorKind.consentRequired,
                let first = await consentPreflight(request).first {
                 pendingConsentScope = first
                 phase = .idle
             } else {
-                phase = .error(reason: "export failed")
+                phase = .error(reason: "export failed", entryId: result.entryId)
             }
         }
         stagePrefix = ""

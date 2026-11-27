@@ -36,8 +36,25 @@ struct HistoryRowView: View {
     }
 
     private var sinkRow: some View {
+        Group {
+            if model.sinkBadges.count > 1 {
+                ViewThatFits(in: .horizontal) {
+                    badgeLine(model.sinkBadges)
+                    VStack(alignment: .leading, spacing: 6) {
+                        badgeLine(Array(model.sinkBadges.dropLast()))
+                        badgeLine(Array(model.sinkBadges.suffix(1)))
+                    }
+                }
+            } else {
+                badgeLine(model.sinkBadges)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func badgeLine(_ badges: [HistoryRowModel.SinkBadge]) -> some View {
         HStack(spacing: 8) {
-            ForEach(Array(model.sinkBadges.enumerated()), id: \.offset) { _, badge in
+            ForEach(Array(badges.enumerated()), id: \.offset) { _, badge in
                 HStack(spacing: 6) {
                     sinkIcon(for: badge)
                     PCPill(
@@ -46,16 +63,17 @@ struct HistoryRowView: View {
                         foreground: badge.ok ? Theme.success : Theme.error,
                         background: Theme.elevated
                     )
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                 }
             }
-            Spacer()
         }
     }
 
     @ViewBuilder
     private func sinkIcon(for badge: HistoryRowModel.SinkBadge) -> some View {
         let tint = badge.ok ? Theme.success : Theme.error
-        switch badge.label.lowercased() {
+        switch (badge.kind ?? badge.label).lowercased() {
         case "github":
             Image("github")
                 .resizable()
@@ -64,6 +82,10 @@ struct HistoryRowView: View {
                 .foregroundStyle(tint)
         case "telegram":
             Image(systemName: "paperplane.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(tint)
+        case "webhook":
+            Image(systemName: "arrow.up.forward.app")
                 .font(.system(size: 12))
                 .foregroundStyle(tint)
         default:

@@ -15,6 +15,9 @@ final class AppContainer: ObservableObject {
     private(set) var automaticWorkoutCoordinator: AutomaticWorkoutDeliveryCoordinator?
     private(set) var automaticWorkoutObserverController: AutomaticWorkoutObserverController?
     @Published private(set) var automaticWorkoutStateRevision: UInt64 = 0
+    @Published private(set) var webhookRevision: UInt64 = 0
+    @Published private(set) var resetGeneration: UInt64 = 0
+    var lastWebhookWrite: Task<Void, Never>?
     private let factoryClosure: @MainActor (AppContainer) async -> Orchestrator
 
     private var cachedGithubProvider: DeviceFlowCredentialProvider?
@@ -64,6 +67,10 @@ final class AppContainer: ObservableObject {
                 controller?.refreshRegistration()
             }
         }
+    }
+
+    func noteWebhookChanged() {
+        webhookRevision &+= 1
     }
 
     func noteAutomaticWorkoutStateChanged() {
@@ -135,6 +142,8 @@ final class AppContainer: ObservableObject {
                 destination: .telegram(chatID: chat, messageThreadID: preferences.telegramThreadId),
                 enabledCategoryIds: categories
             )
+        case .webhook:
+            return await webhookConsentScope(categoryIDs: categories)
         }
     }
 
@@ -147,6 +156,11 @@ final class AppContainer: ObservableObject {
             return false
         }
         consentStore.accept(scope)
+        if scope.destination.kind == .webhook {
+            preferences.webhookExportEnabled = true
+            preferences.webhookPausedByInvalidEdit = false
+            noteWebhookChanged()
+        }
         return true
     }
 
@@ -201,6 +215,7 @@ final class AppContainer: ObservableObject {
     }
 
     func prepareForReset() {
+        resetGeneration &+= 1
         telegramSecretRevision &+= 1
         automaticWorkoutConsentStore.invalidate()
         preferences.automaticWorkoutTelegramEnabled = false

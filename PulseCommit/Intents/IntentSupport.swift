@@ -23,6 +23,8 @@ enum DestinationOption: String, AppEnum {
     case both
     case githubOnly
     case telegramOnly
+    case webhookOnly
+    case allEnabled
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation {
         TypeDisplayRepresentation(name: "Destination")
@@ -31,7 +33,9 @@ enum DestinationOption: String, AppEnum {
     static let caseDisplayRepresentations: [DestinationOption: DisplayRepresentation] = [
         .both: "Both",
         .githubOnly: "GitHub only",
-        .telegramOnly: "Telegram only"
+        .telegramOnly: "Telegram only",
+        .webhookOnly: "Webhook only",
+        .allEnabled: "All configured destinations"
     ]
 
     var sinkIds: Set<String> {
@@ -39,6 +43,8 @@ enum DestinationOption: String, AppEnum {
         case .both: return ["github", "telegram"]
         case .githubOnly: return ["github"]
         case .telegramOnly: return ["telegram"]
+        case .webhookOnly: return [WebhookDestinationSink.sinkID]
+        case .allEnabled: return ["github", "telegram", WebhookDestinationSink.sinkID]
         }
     }
 }
@@ -46,6 +52,10 @@ enum DestinationOption: String, AppEnum {
 enum IntentError: Error, CustomLocalizedStringResourceConvertible {
     case noCategoriesEnabled
     case noDestinationsConfigured
+    case webhookNotConfigured
+    case webhookNotSelected
+    case noGitHubOrTelegramConfigured
+    case selectedDestinationNotConfigured(webhookConfigured: Bool)
     case invalidRange
     case consentRequired
     case limitedHealthHistory(String)
@@ -57,7 +67,18 @@ enum IntentError: Error, CustomLocalizedStringResourceConvertible {
         case .noCategoriesEnabled:
             return "No categories enabled. Open Pulse Commit and enable at least one category."
         case .noDestinationsConfigured:
+            return "No destinations configured. Connect GitHub, Telegram or a Webhook in Pulse Commit."
+        case .webhookNotConfigured:
+            return "Set up the Webhook destination in Pulse Commit first."
+        case .webhookNotSelected:
+            return "Only the webhook is set up. Set Destinations to Webhook only or All configured destinations."
+        case .noGitHubOrTelegramConfigured:
             return "No destinations configured. Connect GitHub or Telegram in Pulse Commit."
+        case .selectedDestinationNotConfigured(let webhookConfigured):
+            if webhookConfigured {
+                return "The destination selected in Destinations is not set up. The webhook is used only with Webhook only or All configured destinations."
+            }
+            return "The destination selected in Destinations is not set up. Connect it in Pulse Commit."
         case .invalidRange:
             return "Invalid date range. 'From' must be earlier than 'To', within the last 365 days."
         case .consentRequired:
@@ -103,12 +124,16 @@ enum IntentRunner {
            !bot.isEmpty, !chat.isEmpty {
             ids.insert("telegram")
         }
+        if await container.webhookExportIsConfigured() {
+            ids.insert(WebhookDestinationSink.sinkID)
+        }
         return ids
     }
 
     static func request(
         mode: ExportRequest.Mode,
         sinkFilter: Set<String>? = nil,
+        consentedOnly: Bool = false,
         container: AppContainer
     ) async throws -> ExportRequest {
         let configured = await configuredSinkIds(container)
@@ -119,7 +144,21 @@ enum IntentRunner {
             sinks = configured
         }
         if sinks.isEmpty {
-            throw IntentError.noDestinationsConfigured
+            if sinkFilter == [WebhookDestinationSink.sinkID] {
+                throw IntentError.webhookNotConfigured
+            }
+            guard let sinkFilter, !sinkFilter.contains(WebhookDestinationSink.sinkID) else {
+                throw IntentError.noDestinationsConfigured
+            }
+            if configured == [WebhookDestinationSink.sinkID] {
+                throw IntentError.webhookNotSelected
+            }
+            if configured.isEmpty {
+                throw IntentError.noGitHubOrTelegramConfigured
+            }
+            throw IntentError.selectedDestinationNotConfigured(
+                webhookConfigured: configured.contains(WebhookDestinationSink.sinkID)
+            )
         }
         let categories = container.preferences.enabledCategoryIds
         if categories.isEmpty {
@@ -128,19 +167,39 @@ enum IntentRunner {
         return ExportRequest(
             mode: mode,
             enabledCategoryIds: categories,
-            enabledSinkIds: sinks
+            enabledSinkIds: consentedOnly ? try await consentedSinkIds(sinks, categories: categories, container: container) : sinks
         )
+    }
+
+    static func consentedSinkIds(
+        _ sinkIds: Set<String>,
+        categories: Set<String>,
+        container: AppContainer
+    ) async throws -> Set<String> {
+        var consented = Set<String>()
+        for sinkId in sinkIds {
+            guard let kind = HealthExportDestinationKind(rawValue: sinkId),
+                  let scope = await container.currentConsentScope(for: kind, categoryIDs: categories),
+                  container.consentStore.hasCurrentConsent(for: scope) else { continue }
+            consented.insert(sinkId)
+        }
+        if consented.isEmpty {
+            throw IntentError.consentRequired
+        }
+        return consented
     }
 
     static func run(
         mode: ExportRequest.Mode,
         sinkFilter: Set<String>? = nil,
+        consentedOnly: Bool = false,
         container: AppContainer? = nil
     ) async throws -> String {
         let container = container ?? AppContainer.shared
         let request = try await request(
             mode: mode,
             sinkFilter: sinkFilter,
+            consentedOnly: consentedOnly,
             container: container
         )
         let orchestrator = await container.orchestratorFactory()
