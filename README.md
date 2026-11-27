@@ -128,7 +128,7 @@ An excerpt from `summary.json`:
 
 ## Connect an AI agent
 
-Guides for reading the export from your own agent (Telegram chat, GitHub repo or webhook) are in [docs/guides](docs/guides/agents-overview.md): [OpenClaw](docs/guides/openclaw.md), [Hermes Agent](docs/guides/hermes.md), [Telegram bot-to-bot](docs/guides/telegram-bot-to-bot.md) and a [SKILL.md](docs/guides/skills/pulse-commit-health/SKILL.md) for reading the GitHub export. They are not yet tested end to end.
+Guides for reading the export from your own agent (Telegram chat, GitHub repo or webhook) are in [docs/guides](docs/guides/agents-overview.md), including notes for specific agent tools, [Telegram bot-to-bot](docs/guides/telegram-bot-to-bot.md) and a [SKILL.md](docs/guides/skills/pulse-commit-health/SKILL.md) for reading the GitHub export. They are not yet tested end to end.
 
 ## Setup
 

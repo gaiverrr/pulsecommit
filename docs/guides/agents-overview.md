@@ -8,9 +8,9 @@ Pulse Commit has no AI service and no backend. It sends your Health export to de
 |---|---|---|
 | Telegram chat | The daily message text and a ZIP of the JSON files, in a chat the agent is part of | The agent already lives in Telegram and you want the day in the conversation |
 | GitHub repo | One commit per day with `summary.json`, `summary.md`, samples, workouts and routes | The agent can read a repository and you want history, raw samples and routes |
-| Webhook | One JSON `POST` per day with the summary and a file manifest | The agent has an HTTP endpoint (OpenClaw, Hermes) and you want it to react right away |
+| Webhook | One JSON `POST` per exported day with the summary and a file manifest | The agent has an HTTP endpoint and you want it to react right away |
 
-The webhook destination is specified in [the webhook spec](../specs/2026-11-26-webhook-destination.md) for release 1.0.2. Until it ships in the app, use Telegram or GitHub. The webhook payload carries `summary` and `summary_markdown` only; raw samples, workouts and GPX stay in GitHub exports.
+The webhook destination is available from release 1.0.2; the payload is described in [the webhook spec](../specs/2026-11-26-webhook-destination.md). Each POST carries `summary` (the day's `summary.json`, including each workout's details and State of Mind entries for the selected categories), `summary_markdown` and a file manifest. Raw sample files, workout files and GPX routes are not sent; they are in GitHub exports and the Telegram ZIP.
 
 ## Which one
 

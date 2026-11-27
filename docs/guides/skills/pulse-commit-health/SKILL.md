@@ -26,9 +26,9 @@ The commit message looks like `chore: pulse 2026-08-28 · 10055 steps · 2 worko
 
 1. Find the date folders. The user can choose a subfolder in the app, so they may be at `<YYYY-MM-DD>/` or at `<subdir>/<YYYY-MM-DD>/`. Look for folder names matching `YYYY-MM-DD` at depth 0 to 2, then sort them to find the latest day or a range. All paths below are relative to the folder that holds the date folders.
 2. Read `<date>/summary.json` first. Top-level keys:
-   - `schema_version`, `date`, `timezone`, `generated_at`, `latest_sample_at` (optional)
+   - `schema_version`, `date` (the calendar day in `timezone`), `timezone` (an IANA ID such as `Europe/Berlin`), `generated_at`, `latest_sample_at` (optional)
    - `device`, `app_version`
-   - `unavailable_categories`: categories with no data that day
+   - `unavailable_categories`: enabled categories whose Apple Health read failed in this export. A category with no data that day is not listed here; it is missing from `metrics`.
    - `metrics`: an object keyed by category, for example `steps.total`, `active_energy.total`, `resting_heart_rate.value`, `hrv_sdnn.avg`, `vo2_max.value`, `sleep.duration_minutes` with `stage_deep`, `stage_rem`, `stage_core`, `stage_awake`, `body_mass.value`. The `unit` key sits once per category (next to its metrics), not on each metric.
    - `workouts`: a list. Fields: `id`, `type`, `start_date`, `end_date`, `duration_minutes`, `duration_seconds`, `distance_km`, `distance_meters`, `average_pace_seconds_per_km`, `average_speed_kph`, `active_energy_kcal`, `avg_hr`, `max_hr`, `heart_rate_zones`, `recorded_intervals`, `has_route`. Several are optional and absent when not recorded.
    - `state_of_mind`: a list of entries with `time`, `valence` and `labels`
@@ -37,7 +37,7 @@ The commit message looks like `chore: pulse 2026-08-28 · 10055 steps · 2 worko
 5. For a workout, open `workouts/<id>-<type>.json`. Read `routes/<id>-<type>.gpx` only if `has_route` is true.
 6. For trends, read `summary.json` for each day in the range. Do not read all samples.
 
-Only categories the user enabled appear. A missing key means no data or a disabled category, not zero.
+Only categories the user enabled appear. A missing key means no data, a disabled category or a failed read (see `unavailable_categories`), not zero.
 
 ## schema_version
 
@@ -45,7 +45,7 @@ Every JSON file carries `"schema_version"`, currently `"1.0"`. Changes within a 
 
 ## Rules
 
-- Times are in the file's `timezone`. Convert before comparing days.
+- Timestamps (`generated_at`, `latest_sample_at`, workout `start_date` and `end_date`, `state_of_mind[].time`, sample times) are ISO 8601 in UTC, ending in `Z`. The folder name and `date` are the local day in `timezone`. Convert timestamps to `timezone` before grouping them by day.
 - Report units with every number. Do not give medical advice or diagnoses; this is personal tracking data.
 - Do not write to the repository or copy health data to other services unless the user asks.
 

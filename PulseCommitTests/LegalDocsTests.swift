@@ -33,7 +33,7 @@ final class LegalDocsTests: XCTestCase {
         XCTAssertTrue(body.contains("api.telegram.org"), "privacy-policy.md must name api.telegram.org explicitly")
         XCTAssertTrue(body.contains("the HTTPS webhook URL you enter"), "privacy-policy.md must disclose the user-supplied webhook host")
         XCTAssertTrue(body.contains("Pulse Commit cannot delete it"), "privacy-policy.md must state webhook data cannot be deleted by the app")
-        XCTAssertTrue(body.contains("Last updated: 2026-11-26."))
+        XCTAssertTrue(body.contains("Last updated: 2026-11-27."))
         XCTAssertTrue(body.contains("hi@pulsecommit.app"), "privacy-policy.md must include contact email")
         XCTAssertTrue(body.contains("separately opt in to automatic finished-workout messages"))
         XCTAssertTrue(body.contains("manual exports you explicitly trigger or automatic finished-workout delivery you separately authorize"))

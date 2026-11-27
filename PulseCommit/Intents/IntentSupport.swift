@@ -53,6 +53,9 @@ enum IntentError: Error, CustomLocalizedStringResourceConvertible {
     case noCategoriesEnabled
     case noDestinationsConfigured
     case webhookNotConfigured
+    case webhookNotSelected
+    case noGitHubOrTelegramConfigured
+    case selectedDestinationNotConfigured(webhookConfigured: Bool)
     case invalidRange
     case consentRequired
     case limitedHealthHistory(String)
@@ -67,6 +70,15 @@ enum IntentError: Error, CustomLocalizedStringResourceConvertible {
             return "No destinations configured. Connect GitHub, Telegram or a Webhook in Pulse Commit."
         case .webhookNotConfigured:
             return "Set up the Webhook destination in Pulse Commit first."
+        case .webhookNotSelected:
+            return "Only the webhook is set up. Set Destinations to Webhook only or All configured destinations."
+        case .noGitHubOrTelegramConfigured:
+            return "No destinations configured. Connect GitHub or Telegram in Pulse Commit."
+        case .selectedDestinationNotConfigured(let webhookConfigured):
+            if webhookConfigured {
+                return "The destination selected in Destinations is not set up. The webhook is used only with Webhook only or All configured destinations."
+            }
+            return "The destination selected in Destinations is not set up. Connect it in Pulse Commit."
         case .invalidRange:
             return "Invalid date range. 'From' must be earlier than 'To', within the last 365 days."
         case .consentRequired:
@@ -134,7 +146,18 @@ enum IntentRunner {
             if sinkFilter == [WebhookDestinationSink.sinkID] {
                 throw IntentError.webhookNotConfigured
             }
-            throw IntentError.noDestinationsConfigured
+            guard let sinkFilter, !sinkFilter.contains(WebhookDestinationSink.sinkID) else {
+                throw IntentError.noDestinationsConfigured
+            }
+            if configured == [WebhookDestinationSink.sinkID] {
+                throw IntentError.webhookNotSelected
+            }
+            if configured.isEmpty {
+                throw IntentError.noGitHubOrTelegramConfigured
+            }
+            throw IntentError.selectedDestinationNotConfigured(
+                webhookConfigured: configured.contains(WebhookDestinationSink.sinkID)
+            )
         }
         let categories = container.preferences.enabledCategoryIds
         if categories.isEmpty {
