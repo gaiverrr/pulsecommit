@@ -109,7 +109,7 @@ struct HealthExportDisclosure: Equatable, Sendable {
             deletion = "Disable this destination to stop future exports. Delete remote messages in Telegram and with the bot operator; resetting Pulse Commit removes only local data."
         case .webhook:
             title = "Allow Health export to a webhook?"
-            formats = "One JSON request per exported day: summary.json and the summary.md text for the selected categories, including each workout's details (times, distance, pace, energy, heart rate, zones, laps) and State of Mind entries, plus a file list. Raw sample files, workout files and GPX routes are not sent."
+            formats = "One JSON request per exported day: summary.json and the summary.md text for the selected categories, including each workout's details (times, distance, pace, energy, heart rate, zones, laps and segments) and State of Mind entries, plus a file list. Raw sample files, workout files and GPX routes are not sent."
             readers = ""
             retention = ""
             deletion = "Disable this destination to stop future exports. Ask the server operator to delete data already sent; resetting Pulse Commit removes only local data."
