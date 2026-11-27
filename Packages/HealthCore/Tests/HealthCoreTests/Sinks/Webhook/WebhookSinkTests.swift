@@ -421,6 +421,20 @@ final class WebhookConfigurationTests: XCTestCase {
         XCTAssertNotEqual(a.consentIdentity, c.consentIdentity)
     }
 
+    func test_identityTracksTheExactURL() throws {
+        func identity(_ string: String) throws -> WebhookConsentIdentity {
+            try WebhookConfiguration(endpoint: URL(string: string)!, token: nil).consentIdentity
+        }
+        let base = try identity("https://hooks.example.com/hook?chat_id=1")
+        XCTAssertNotEqual(base, try identity("https://hooks.example.com/hook?chat_id=2"))
+        XCTAssertNotEqual(base, try identity("https://hooks.example.com/hook"))
+        XCTAssertNotEqual(try identity("https://hooks.example.com/hook"), try identity("https://hooks.example.com/hook/"))
+        XCTAssertNotEqual(try identity("https://hooks.example.com/a%2Fb"), try identity("https://hooks.example.com/a/b"))
+        XCTAssertNotEqual(try identity("https://hooks.example.com:8443/hook"), try identity("https://hooks.example.com/hook"))
+        XCTAssertEqual(try identity("https://HOOKS.example.com/hook?chat_id=1"), base)
+        XCTAssertEqual(try identity("https://hooks.example.com/hook?chat_id=1#frag"), base)
+    }
+
     func test_generatedTokensAreLongAndUnique() {
         let a = WebhookConfiguration.generateToken()
         let b = WebhookConfiguration.generateToken()

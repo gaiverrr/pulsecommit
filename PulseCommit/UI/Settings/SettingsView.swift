@@ -149,6 +149,7 @@ struct SettingsView: View {
     @MainActor
     private func performReset() async {
         container.prepareForReset()
+        await container.webhookWritesSettled()
         let secrets = container.secrets
         for key in AppContainer.resettableSecretKeys {
             try? await secrets.set(nil, for: key)

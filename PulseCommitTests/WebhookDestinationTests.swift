@@ -216,7 +216,7 @@ final class WebhookDestinationTests: XCTestCase {
         XCTAssertTrue(accepted)
     }
 
-    func test_configuredWebhookIsAddedWithRequirementWhetherOrNotConsented() async throws {
+    func test_savedWebhookJoinsExportsOnlyOnceEnrolled() async throws {
         let container = makeContainer()
         container.preferences.enabledCategoryIds = ["steps"]
 
@@ -227,8 +227,15 @@ final class WebhookDestinationTests: XCTestCase {
         _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization")
         orchestrator = await container.orchestratorFactory()
         sinkIDs = await orchestrator.configuredSinkIds
-        XCTAssertEqual(sinkIDs, ["webhook"])
+        XCTAssertEqual(sinkIDs, [])
         var configured = await IntentRunner.configuredSinkIds(container)
+        XCTAssertEqual(configured, [])
+
+        container.preferences.webhookExportEnabled = true
+        orchestrator = await container.orchestratorFactory()
+        sinkIDs = await orchestrator.configuredSinkIds
+        XCTAssertEqual(sinkIDs, ["webhook"])
+        configured = await IntentRunner.configuredSinkIds(container)
         XCTAssertEqual(configured, ["webhook"])
         var ready = await container.webhookExportIsReady()
         XCTAssertFalse(ready)
@@ -307,6 +314,7 @@ final class WebhookDestinationTests: XCTestCase {
             enabledCategoryIds: ["steps"]
         ))
         _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization")
+        container.preferences.webhookExportEnabled = true
 
         let request = ExportRequest(mode: .lastDayOnly, enabledCategoryIds: ["steps"], enabledSinkIds: ["github", "webhook"])
         let orchestrator = await container.orchestratorFactory()
@@ -338,61 +346,57 @@ final class WebhookDestinationTests: XCTestCase {
         }
     }
 
-    func test_leavingWithInvalidChangedURLTurnsWebhookOff() async throws {
+    func test_leavingWithInvalidChangedURLPausesWebhook() async throws {
         let container = makeContainer()
         container.preferences.enabledCategoryIds = ["steps"]
         _ = try await container.saveWebhookSettings(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization")
-
-        await container.applyWebhookDraftOnLeave(WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Bad Header"))
-        XCTAssertTrue(container.preferences.webhookExportEnabled)
-
-        await container.applyWebhookDraftOnLeave(WebhookSettingsDraft(endpoint: "http://other.example.com/x", token: token, tokenHeader: "Authorization"))
-        XCTAssertFalse(container.preferences.webhookExportEnabled)
+        try await acceptWebhookConsent(container)
         let stored = await container.storedWebhookSettings()
-        XCTAssertEqual(stored?.endpoint, "https://hooks.example.com/x")
+        let generation = container.resetGeneration
+
+        container.applyWebhookDraftOnLeave(
+            WebhookSettingsDraft(endpoint: "http://other.example.com/x", token: token, tokenHeader: "Authorization"),
+            stored: stored,
+            generation: generation
+        )
+        XCTAssertTrue(container.preferences.webhookPausedByInvalidEdit)
+        await container.webhookWritesSettled()
+        let kept = await container.storedWebhookSettings()
+        XCTAssertEqual(kept?.endpoint, "https://hooks.example.com/x")
         let configured = await IntentRunner.configuredSinkIds(container)
         XCTAssertEqual(configured, [])
     }
 
     func test_invalidChangedDraftIsDetectedWithoutKeychain() {
-        let stored = "https://hooks.example.com/x"
-        func draft(_ endpoint: String, header: String = "Authorization") -> WebhookSettingsDraft {
-            WebhookSettingsDraft(endpoint: endpoint, token: token, tokenHeader: header)
+        let stored = WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization")
+        func draft(_ endpoint: String, header: String = "Authorization", token: String? = nil) -> WebhookSettingsDraft {
+            WebhookSettingsDraft(endpoint: endpoint, token: token ?? self.token, tokenHeader: header)
         }
         XCTAssertTrue(draft("http://other.example.com/x").isInvalidChange(from: stored))
-        XCTAssertFalse(draft(stored, header: "Bad Header").isInvalidChange(from: stored))
+        XCTAssertTrue(draft(stored.endpoint, header: "Bad Header").isInvalidChange(from: stored))
+        XCTAssertTrue(draft(stored.endpoint, token: "Bearer abc").isInvalidChange(from: stored))
         XCTAssertFalse(draft("https://other.example.com/x").isInvalidChange(from: stored))
         XCTAssertFalse(draft(" ").isInvalidChange(from: stored))
         XCTAssertFalse(draft("http://other.example.com/x").isInvalidChange(from: nil))
     }
 
-    func test_invalidChangedDraftDisablesWebhookSynchronously() {
-        let container = makeContainer()
-        container.preferences.webhookExportEnabled = true
-        let stored = "https://hooks.example.com/x"
-
-        let kept = container.disableWebhookIfInvalidChange(
-            draft: WebhookSettingsDraft(endpoint: stored, token: token, tokenHeader: "Bad Header"),
-            storedEndpoint: stored
-        )
-        XCTAssertFalse(kept)
-        XCTAssertTrue(container.preferences.webhookExportEnabled)
-
-        let disabled = container.disableWebhookIfInvalidChange(
-            draft: WebhookSettingsDraft(endpoint: "http://other.example.com/x", token: token, tokenHeader: "Authorization"),
-            storedEndpoint: stored
-        )
-        XCTAssertTrue(disabled)
-        XCTAssertFalse(container.preferences.webhookExportEnabled)
-    }
-
     func test_leavingWithValidOrEmptyDraftSavesOrClears() async throws {
         let container = makeContainer()
-        await container.applyWebhookDraftOnLeave(WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization"))
+        container.applyWebhookDraftOnLeave(
+            WebhookSettingsDraft(endpoint: "https://hooks.example.com/x", token: token, tokenHeader: "Authorization"),
+            stored: nil,
+            generation: container.resetGeneration
+        )
+        await container.webhookWritesSettled()
         var stored = await container.storedWebhookSettings()
         XCTAssertEqual(stored?.token, token)
 
-        await container.applyWebhookDraftOnLeave(WebhookSettingsDraft(endpoint: " ", token: token, tokenHeader: "Authorization"))
+        container.applyWebhookDraftOnLeave(
+            WebhookSettingsDraft(endpoint: " ", token: token, tokenHeader: "Authorization"),
+            stored: stored,
+            generation: container.resetGeneration
+        )
+        await container.webhookWritesSettled()
         stored = await container.storedWebhookSettings()
         XCTAssertNil(stored)
     }
@@ -502,9 +506,11 @@ final class WebhookDestinationTests: XCTestCase {
     func test_preferencesResetClearsWebhookToggle() {
         let defaults = ephemeralDefaults()
         let preferences = PreferencesStore(defaults: defaults)
-        XCTAssertTrue(preferences.webhookExportEnabled)
-        preferences.webhookExportEnabled = false
+        XCTAssertFalse(preferences.webhookExportEnabled)
+        preferences.webhookExportEnabled = true
+        preferences.webhookPausedByInvalidEdit = true
         preferences.reset()
-        XCTAssertTrue(preferences.webhookExportEnabled)
+        XCTAssertFalse(preferences.webhookExportEnabled)
+        XCTAssertFalse(preferences.webhookPausedByInvalidEdit)
     }
 }

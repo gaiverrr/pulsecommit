@@ -119,7 +119,7 @@ final class DestinationsToggleTests: XCTestCase {
         try await Task.sleep(nanoseconds: 500_000_000)
         XCTAssertTrue(preferences.githubExportEnabled)
         XCTAssertTrue(preferences.telegramExportEnabled)
-        XCTAssertTrue(preferences.webhookExportEnabled)
+        XCTAssertFalse(preferences.webhookExportEnabled)
     }
 
     func test_renderDestinationsWithConfiguredAndUnconfiguredRows() async throws {

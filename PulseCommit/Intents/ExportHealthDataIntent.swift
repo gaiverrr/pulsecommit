@@ -19,7 +19,8 @@ struct ExportHealthDataIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let status = try await IntentRunner.run(
             mode: IntentRunner.exportMode(for: window),
-            sinkFilter: destinations.sinkIds
+            sinkFilter: destinations.sinkIds,
+            consentedOnly: destinations == .allEnabled
         )
         return .result(value: status)
     }

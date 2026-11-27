@@ -75,6 +75,7 @@ struct RootTabView: View {
         }
         .tint(Theme.accent)
         .preferredColorScheme(.dark)
+        .onChange(of: container.resetGeneration) { _, _ in destinationsPath = [] }
     }
 
     private static func configureTabBarAppearance() {

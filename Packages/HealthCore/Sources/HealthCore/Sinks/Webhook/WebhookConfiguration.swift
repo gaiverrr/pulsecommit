@@ -77,11 +77,14 @@ public struct WebhookConfiguration: Equatable, Sendable {
     public var host: String { endpoint.host ?? "" }
 
     public var consentIdentity: WebhookConsentIdentity {
-        WebhookConsentIdentity(
+        let components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false)
+        let path = components?.percentEncodedPath ?? endpoint.path
+        let target = components?.percentEncodedQuery.map { "\(path)?\($0)" } ?? path
+        return WebhookConsentIdentity(
             scheme: endpoint.scheme?.lowercased() ?? "https",
             host: host.lowercased(),
             port: endpoint.port,
-            path: endpoint.path
+            path: target
         )
     }
 

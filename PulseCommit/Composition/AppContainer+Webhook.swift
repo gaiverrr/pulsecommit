@@ -29,9 +29,35 @@ struct WebhookSettingsDraft: Equatable, Sendable {
         }
     }
 
-    func isInvalidChange(from storedEndpoint: String?) -> Bool {
-        let submitted = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let storedEndpoint, !submitted.isEmpty, submitted != storedEndpoint else { return false }
+    var validationError: WebhookConfigurationError? {
+        guard !endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        do {
+            _ = try configuration()
+            return nil
+        } catch let error as WebhookConfigurationError {
+            return error
+        } catch {
+            return .missingHost
+        }
+    }
+
+    var normalized: WebhookSettingsDraft {
+        let header = tokenHeader.trimmingCharacters(in: .whitespacesAndNewlines)
+        return WebhookSettingsDraft(
+            endpoint: endpoint.trimmingCharacters(in: .whitespacesAndNewlines),
+            token: token.trimmingCharacters(in: .whitespacesAndNewlines),
+            tokenHeader: header.isEmpty ? WebhookConfiguration.defaultTokenHeader : header
+        )
+    }
+
+    var consentIdentity: WebhookConsentIdentity? {
+        try? configuration().consentIdentity
+    }
+
+    func isInvalidChange(from stored: WebhookSettingsDraft?) -> Bool {
+        guard let stored,
+              !endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              normalized != stored.normalized else { return false }
         return (try? configuration()) == nil
     }
 
@@ -50,16 +76,19 @@ struct WebhookSettingsDraft: Equatable, Sendable {
 extension AppContainer {
     static let resettableSecretKeys = [KeychainTokenVault.storageKey, "tg_bot_token", "tg_chat_id"] + WebhookSecretKeys.all
 
-    func storedWebhookSettings() async -> WebhookSettingsDraft? {
-        guard let endpoint = (try? await secrets.get(WebhookSecretKeys.endpoint)) ?? nil,
-              !endpoint.isEmpty else { return nil }
-        let token = (try? await secrets.get(WebhookSecretKeys.token)) ?? nil
-        let header = (try? await secrets.get(WebhookSecretKeys.tokenHeader)) ?? nil
+    func loadWebhookSettings() async throws -> WebhookSettingsDraft? {
+        guard let endpoint = try await secrets.get(WebhookSecretKeys.endpoint), !endpoint.isEmpty else { return nil }
+        let token = try await secrets.get(WebhookSecretKeys.token)
+        let header = try await secrets.get(WebhookSecretKeys.tokenHeader)
         return WebhookSettingsDraft(
             endpoint: endpoint,
             token: token ?? "",
             tokenHeader: header ?? WebhookConfiguration.defaultTokenHeader
         )
+    }
+
+    func storedWebhookSettings() async -> WebhookSettingsDraft? {
+        (try? await loadWebhookSettings()) ?? nil
     }
 
     func currentWebhookConfiguration() async -> WebhookConfiguration? {
@@ -73,28 +102,143 @@ extension AppContainer {
             token: token,
             tokenHeader: tokenHeader
         ).configuration()
-        try await secrets.set(configuration.endpoint.absoluteString, for: WebhookSecretKeys.endpoint)
-        try await secrets.set(configuration.token, for: WebhookSecretKeys.token)
-        try await secrets.set(configuration.tokenHeader, for: WebhookSecretKeys.tokenHeader)
+        try await enqueueWebhookWrite { try await self.writeWebhookSettings(configuration) }.value
         return configuration
     }
 
     func clearWebhookSettings() async {
+        _ = try? await enqueueWebhookWrite { await self.removeWebhookSettings() }.value
+    }
+
+    func webhookWritesSettled() async {
+        while let pending = lastWebhookWrite {
+            await pending.value
+            if lastWebhookWrite == pending { return }
+        }
+    }
+
+    func applyWebhookDraftOnLeave(_ draft: WebhookSettingsDraft, stored: WebhookSettingsDraft?, generation: UInt64) {
+        guard generation == resetGeneration else { return }
+        if draft.endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            guard stored != nil else { return }
+            enqueueWebhookWrite {
+                guard generation == self.resetGeneration else { return }
+                await self.removeWebhookSettings()
+            }
+            return
+        }
+        guard let configuration = try? draft.configuration() else {
+            if draft.isInvalidChange(from: stored) {
+                preferences.webhookPausedByInvalidEdit = true
+                noteWebhookChanged()
+            }
+            return
+        }
+        if let stored, stored.normalized == draft.normalized {
+            if preferences.webhookPausedByInvalidEdit {
+                preferences.webhookPausedByInvalidEdit = false
+                noteWebhookChanged()
+            }
+            return
+        }
+        enqueueWebhookWrite {
+            guard generation == self.resetGeneration else { return }
+            try await self.writeWebhookSettings(configuration)
+        }
+    }
+
+    @discardableResult
+    private func enqueueWebhookWrite<T: Sendable>(
+        _ operation: @escaping @MainActor () async throws -> T
+    ) -> Task<T, Error> {
+        let previous = lastWebhookWrite
+        let task = Task { @MainActor in
+            await previous?.value
+            return try await operation()
+        }
+        lastWebhookWrite = Task { @MainActor in _ = try? await task.value }
+        return task
+    }
+
+    private func writeWebhookSettings(_ configuration: WebhookConfiguration) async throws {
+        defer { noteWebhookChanged() }
+        let previous: WebhookSettingsDraft?
+        let readFailed: Bool
+        do {
+            previous = try await loadWebhookSettings()
+            readFailed = false
+        } catch {
+            previous = nil
+            readFailed = true
+        }
+        let newEndpoint = configuration.endpoint.absoluteString
+        if readFailed || previous?.consentIdentity != configuration.consentIdentity {
+            consentStore.invalidate(.webhook)
+        }
+        let endpointChanges = readFailed || previous?.endpoint != newEndpoint
+        do {
+            if endpointChanges {
+                try await secrets.set(nil, for: WebhookSecretKeys.endpoint)
+            }
+            try await secrets.set(configuration.token, for: WebhookSecretKeys.token)
+            try await secrets.set(configuration.tokenHeader, for: WebhookSecretKeys.tokenHeader)
+            if endpointChanges {
+                try await secrets.set(newEndpoint, for: WebhookSecretKeys.endpoint)
+            }
+        } catch {
+            await restoreWebhookSettings(previous)
+            throw error
+        }
+        preferences.webhookPausedByInvalidEdit = false
+    }
+
+    private func restoreWebhookSettings(_ previous: WebhookSettingsDraft?) async {
+        guard let previous else {
+            try? await secrets.set(nil, for: WebhookSecretKeys.endpoint)
+            return
+        }
+        do {
+            try await secrets.set(previous.token.isEmpty ? nil : previous.token, for: WebhookSecretKeys.token)
+            try await secrets.set(previous.tokenHeader, for: WebhookSecretKeys.tokenHeader)
+            try await secrets.set(previous.endpoint, for: WebhookSecretKeys.endpoint)
+        } catch {
+            try? await secrets.set(nil, for: WebhookSecretKeys.endpoint)
+        }
+    }
+
+    private func removeWebhookSettings() async {
+        defer { noteWebhookChanged() }
         consentStore.invalidate(.webhook)
+        preferences.webhookExportEnabled = false
+        preferences.webhookPausedByInvalidEdit = false
         for key in WebhookSecretKeys.all {
             try? await secrets.set(nil, for: key)
         }
     }
 
     func webhookConsentScope(categoryIDs: Set<String>? = nil) async -> HealthExportConsentScope? {
-        await webhookTarget(categoryIDs: categoryIDs)?.scope
+        let categories = categoryIDs ?? preferences.enabledCategoryIds
+        guard !categories.isEmpty, let configuration = await currentWebhookConfiguration() else { return nil }
+        return HealthExportConsentScope(
+            destination: HealthExportDestinationIdentity(webhook: configuration.consentIdentity),
+            enabledCategoryIds: categories
+        )
+    }
+
+    private var webhookEnrolled: Bool {
+        preferences.webhookExportEnabled && !preferences.webhookPausedByInvalidEdit
     }
 
     func configuredWebhookTarget() async -> (configuration: WebhookConfiguration, requirement: ConsentRequirement)? {
-        guard let target = await webhookTarget(categoryIDs: nil) else { return nil }
+        guard webhookEnrolled,
+              let configuration = await currentWebhookConfiguration(),
+              webhookEnrolled else { return nil }
         return (
-            target.configuration,
-            ConsentRequirement(sinkID: WebhookDestinationSink.sinkID, destination: target.scope.destination)
+            configuration,
+            ConsentRequirement(
+                sinkID: WebhookDestinationSink.sinkID,
+                destination: HealthExportDestinationIdentity(webhook: configuration.consentIdentity)
+            )
         )
     }
 
@@ -102,55 +246,14 @@ extension AppContainer {
         await configuredWebhookTarget() != nil
     }
 
-    @discardableResult
-    func disableWebhookIfInvalidChange(draft: WebhookSettingsDraft, storedEndpoint: String?) -> Bool {
-        guard draft.isInvalidChange(from: storedEndpoint) else { return false }
-        preferences.webhookExportEnabled = false
-        return true
-    }
-
-    func applyWebhookDraftOnLeave(_ draft: WebhookSettingsDraft) async {
-        if draft.endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            await clearWebhookSettings()
-            return
-        }
-        if (try? draft.configuration()) != nil {
-            _ = try? await saveWebhookSettings(
-                endpoint: draft.endpoint,
-                token: draft.token,
-                tokenHeader: draft.tokenHeader
-            )
-            return
-        }
-        if draft.isInvalidChange(from: await storedWebhookSettings()?.endpoint) {
-            preferences.webhookExportEnabled = false
-        }
-    }
-
-    private func webhookTarget(
-        categoryIDs: Set<String>?
-    ) async -> (configuration: WebhookConfiguration, scope: HealthExportConsentScope)? {
-        let categories = categoryIDs ?? preferences.enabledCategoryIds
-        guard !categories.isEmpty,
-              preferences.webhookExportEnabled,
-              let configuration = await currentWebhookConfiguration(),
-              preferences.webhookExportEnabled else { return nil }
-        let scope = HealthExportConsentScope(
-            destination: HealthExportDestinationIdentity(webhook: configuration.consentIdentity),
-            enabledCategoryIds: categories
-        )
-        return (configuration, scope)
-    }
-
     func webhookExportIsReady() async -> Bool {
-        guard let target = await webhookTarget(categoryIDs: nil) else { return false }
-        return consentStore.hasCurrentConsent(for: target.scope)
+        let categories = preferences.enabledCategoryIds
+        guard !categories.isEmpty, let target = await configuredWebhookTarget() else { return false }
+        return consentStore.hasCurrentConsent(for: target.requirement.scope(for: categories))
     }
 
     func webhookTargetMatches(_ destination: HealthExportDestinationIdentity) async -> Bool {
-        guard preferences.webhookExportEnabled,
-              let configuration = await currentWebhookConfiguration(),
-              preferences.webhookExportEnabled else { return false }
-        return HealthExportDestinationIdentity(webhook: configuration.consentIdentity) == destination
+        guard let target = await configuredWebhookTarget() else { return false }
+        return target.requirement.destination == destination
     }
 }

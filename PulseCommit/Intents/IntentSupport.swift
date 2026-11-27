@@ -121,6 +121,7 @@ enum IntentRunner {
     static func request(
         mode: ExportRequest.Mode,
         sinkFilter: Set<String>? = nil,
+        consentedOnly: Bool = false,
         container: AppContainer
     ) async throws -> ExportRequest {
         let configured = await configuredSinkIds(container)
@@ -143,19 +144,39 @@ enum IntentRunner {
         return ExportRequest(
             mode: mode,
             enabledCategoryIds: categories,
-            enabledSinkIds: sinks
+            enabledSinkIds: consentedOnly ? try await consentedSinkIds(sinks, categories: categories, container: container) : sinks
         )
+    }
+
+    static func consentedSinkIds(
+        _ sinkIds: Set<String>,
+        categories: Set<String>,
+        container: AppContainer
+    ) async throws -> Set<String> {
+        var consented = Set<String>()
+        for sinkId in sinkIds {
+            guard let kind = HealthExportDestinationKind(rawValue: sinkId),
+                  let scope = await container.currentConsentScope(for: kind, categoryIDs: categories),
+                  container.consentStore.hasCurrentConsent(for: scope) else { continue }
+            consented.insert(sinkId)
+        }
+        if consented.isEmpty {
+            throw IntentError.consentRequired
+        }
+        return consented
     }
 
     static func run(
         mode: ExportRequest.Mode,
         sinkFilter: Set<String>? = nil,
+        consentedOnly: Bool = false,
         container: AppContainer? = nil
     ) async throws -> String {
         let container = container ?? AppContainer.shared
         let request = try await request(
             mode: mode,
             sinkFilter: sinkFilter,
+            consentedOnly: consentedOnly,
             container: container
         )
         let orchestrator = await container.orchestratorFactory()
