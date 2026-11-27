@@ -10,7 +10,7 @@ struct ChangelogEntry: Identifiable, Equatable {
 struct ChangelogView: View {
     static let entries: [ChangelogEntry] = [
         ChangelogEntry(version: "1.0.2", items: [
-            "New Webhook destination: each export is sent as one JSON POST to an HTTPS URL you own, with an optional token.",
+            "New Webhook destination: each exported day is sent as one JSON POST to an HTTPS URL you own, with an optional token.",
             "Shortcuts exports can target \"Webhook only\" or \"All configured destinations\".",
             "The Home export button no longer shifts while an export runs.",
             "A failed export's reason opens its History entry.",

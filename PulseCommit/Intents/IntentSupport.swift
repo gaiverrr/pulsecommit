@@ -53,6 +53,7 @@ enum IntentError: Error, CustomLocalizedStringResourceConvertible {
     case noCategoriesEnabled
     case noDestinationsConfigured
     case webhookNotConfigured
+    case webhookNotSelected
     case invalidRange
     case consentRequired
     case limitedHealthHistory(String)
@@ -67,6 +68,8 @@ enum IntentError: Error, CustomLocalizedStringResourceConvertible {
             return "No destinations configured. Connect GitHub, Telegram or a Webhook in Pulse Commit."
         case .webhookNotConfigured:
             return "Set up the Webhook destination in Pulse Commit first."
+        case .webhookNotSelected:
+            return "Only the webhook is set up. Set Destinations to Webhook only or All configured destinations."
         case .invalidRange:
             return "Invalid date range. 'From' must be earlier than 'To', within the last 365 days."
         case .consentRequired:
@@ -133,6 +136,11 @@ enum IntentRunner {
         if sinks.isEmpty {
             if sinkFilter == [WebhookDestinationSink.sinkID] {
                 throw IntentError.webhookNotConfigured
+            }
+            if let sinkFilter,
+               configured == [WebhookDestinationSink.sinkID],
+               !sinkFilter.contains(WebhookDestinationSink.sinkID) {
+                throw IntentError.webhookNotSelected
             }
             throw IntentError.noDestinationsConfigured
         }

@@ -125,6 +125,30 @@ final class IntentRunnerTests: XCTestCase {
         }
     }
 
+    func test_request_both_onlyWebhookConfigured_pointsToWebhookOptions() async throws {
+        let container = try await makeContainer(webhookConfigured: true)
+        container.preferences.githubExportEnabled = false
+        container.preferences.telegramExportEnabled = false
+        for option in [DestinationOption.both, .githubOnly, .telegramOnly] {
+            do {
+                _ = try await IntentRunner.request(
+                    mode: .lastDayOnly,
+                    sinkFilter: option.sinkIds,
+                    container: container
+                )
+                XCTFail("expected webhookNotSelected for \(option)")
+            } catch let error as IntentError {
+                guard case .webhookNotSelected = error else {
+                    return XCTFail("expected webhookNotSelected, got \(error)")
+                }
+                XCTAssertEqual(
+                    String(localized: error.localizedStringResource),
+                    "Only the webhook is set up. Set Destinations to Webhook only or All configured destinations."
+                )
+            }
+        }
+    }
+
     func test_request_githubOnly_unconfigured_throwsGenericError() async throws {
         let container = try await makeContainer()
         container.preferences.githubExportEnabled = false
