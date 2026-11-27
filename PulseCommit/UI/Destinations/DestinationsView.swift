@@ -88,6 +88,7 @@ struct DestinationsView: View {
                 }
             }
             .onAppear(perform: refresh)
+            .onChange(of: container.webhookRevision) { _, _ in refresh() }
         }
     }
 
