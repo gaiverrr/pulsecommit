@@ -31,11 +31,17 @@ final class HistoryStore {
 
     static func onDisk(url: URL? = nil) throws -> HistoryStore {
         let schema = Schema(versionedSchema: SchemaV2.self)
-        let configuration = url.map { ModelConfiguration(schema: schema, url: $0) } ?? ModelConfiguration(schema: schema)
+        guard let url else {
+            let container = try ModelContainer(
+                for: schema,
+                migrationPlan: PulseCommitMigrationPlan.self
+            )
+            return HistoryStore(container: container)
+        }
         let container = try ModelContainer(
             for: schema,
             migrationPlan: PulseCommitMigrationPlan.self,
-            configurations: configuration
+            configurations: ModelConfiguration(schema: schema, url: url)
         )
         return HistoryStore(container: container)
     }
