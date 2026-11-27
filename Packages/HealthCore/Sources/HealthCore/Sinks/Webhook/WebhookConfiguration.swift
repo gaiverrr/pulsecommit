@@ -99,13 +99,25 @@ public struct WebhookConfiguration: Equatable, Sendable {
         if inet_pton(AF_INET6, name, &v6) == 1 {
             return isLocal(ipv6: withUnsafeBytes(of: &v6) { Array($0) })
         }
-        var v4 = in_addr()
-        if inet_pton(AF_INET, name, &v4) == 1 {
-            return isLocal(ipv4: withUnsafeBytes(of: &v4) { Array($0) })
+        var strict = in_addr()
+        let strictParsed = inet_pton(AF_INET, name, &strict) == 1
+        let labels = name.split(separator: ".", omittingEmptySubsequences: false)
+        guard labels.allSatisfy(isNumericLabel) else {
+            return strictParsed && isLocal(ipv4: withUnsafeBytes(of: &strict) { Array($0) })
         }
-        let numericOnly = name.unicodeScalars.allSatisfy { CharacterSet(charactersIn: "0123456789.").contains($0) }
-        let hexForm = name.hasPrefix("0x") && name.unicodeScalars.allSatisfy { CharacterSet(charactersIn: "0123456789abcdefx.").contains($0) }
-        return numericOnly || hexForm
+        var legacy = in_addr()
+        guard labels.count <= 4, inet_aton(name, &legacy) == 1 else { return true }
+        if strictParsed, isLocal(ipv4: withUnsafeBytes(of: &strict) { Array($0) }) { return true }
+        return isLocal(ipv4: withUnsafeBytes(of: &legacy) { Array($0) })
+    }
+
+    private static func isNumericLabel(_ label: Substring) -> Bool {
+        let decimal = CharacterSet(charactersIn: "0123456789")
+        let hex = CharacterSet(charactersIn: "0123456789abcdef")
+        if label.hasPrefix("0x") {
+            return label.dropFirst(2).unicodeScalars.allSatisfy { hex.contains($0) }
+        }
+        return !label.isEmpty && label.unicodeScalars.allSatisfy { decimal.contains($0) }
     }
 
     private static func isLocal(ipv4 b: [UInt8]) -> Bool {

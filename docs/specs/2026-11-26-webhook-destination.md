@@ -42,7 +42,7 @@ One token, sent with every request. The URL may be public; without the token the
 - Redirects are refused (they would send data and the token to another host).
 - `EphemeralAPISession`, 30 s timeout.
 - Headers: `Content-Type`, `User-Agent: PulseCommit/<version>`, `Idempotency-Key` and `X-Request-ID` (same value), then the token header. The token header cannot override reserved headers.
-- Success is any 2xx. Retries (3 attempts, short backoff) on transport errors, 408, 429 and 5xx, honouring `Retry-After`. Other 4xx fail immediately with the status code.
+- Success is any 2xx. Retries (3 attempts, 1 s then 2 s backoff) on transport errors, 408, 429 and 5xx, honouring `Retry-After` up to 5 s per retry, so one day's retry waits total at most 10 s and fit the App Intents background budget. Other 4xx fail immediately with the status code.
 - Multi-day runs are paced (about one request every 2 s) to stay under typical 30 requests/minute limits.
 - Idempotency key: `pc-<date>-<first 12 hex of SHA-256(summary.json)>`. Stable across retries within one run; a user re-run creates a new key. Receivers that want one record per day should upsert on `date`.
 
