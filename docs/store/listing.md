@@ -43,7 +43,7 @@ WHAT IT DOES
 
 Each successful GitHub delivery creates a new commit with summary.json and summary.md, plus samples/*.json for enabled categories, workouts/*.json for workouts present, and routes/*.gpx for workouts with route data. Every JSON file has schema_version 1.0.
 
-Webhook exports are one JSON POST per exported day to an HTTPS URL you own; a request that fails with a network error, HTTP 408, 429 or 5xx is sent up to 3 times in total with the same Idempotency-Key. It has an optional token (sent as Authorization: Bearer by default, or in a header name you choose). The body holds summary.json (including workout details and State of Mind entries for the selected categories), the summary.md text and a file manifest. Raw samples, workout files and routes are not sent. Redirects and local network addresses are refused.
+Webhook exports are one JSON POST per exported day to an HTTPS URL you own, sent up to 3 times in total on network errors, 408, 429 or 5xx, with one Idempotency-Key. It has an optional token, sent as Authorization: Bearer or in a header you name. The body holds summary.json (with workout details and State of Mind), the summary.md text and a file manifest; raw samples, workout files and routes are not sent. Redirects and local network addresses are refused.
 
 Telegram exports contain a Markdown summary and ZIP attachment. Its setup screen can send a labeled sample message before any export.
 
