@@ -26,7 +26,7 @@ struct PrivacyView: View {
                         Divider().background(Theme.divider)
                         privacyParagraph(
                             title: "Tokens stay on device.",
-                            body: "GitHub OAuth tokens, Telegram bot tokens and webhook tokens live in the iOS Keychain. They are never logged, never copied, never transmitted to us."
+                            body: "GitHub OAuth tokens, Telegram bot tokens and webhook tokens live in the iOS Keychain. They are never logged and never sent to us. Each token goes only to its own service: GitHub, Telegram or your webhook URL. The Copy button on the Webhook screen puts the webhook token on this iPhone's clipboard for 2 minutes, only when you tap it."
                         )
                         Divider().background(Theme.divider)
                         privacyParagraph(

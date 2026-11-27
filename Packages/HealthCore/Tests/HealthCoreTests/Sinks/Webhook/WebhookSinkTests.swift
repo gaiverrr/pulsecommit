@@ -168,7 +168,7 @@ final class WebhookSinkTests: XCTestCase {
     }
 
     func test_retryAfterIsHonouredOn429() async throws {
-        WebhookMockTransport.reset([ok(429, headers: ["Retry-After": "7"]), ok()])
+        WebhookMockTransport.reset([ok(429, headers: ["Retry-After": "4"]), ok()])
         let sleeps = SleepLog()
         let sink = try makeSink(sleeps: sleeps)
         let attempts = SleepLog()
@@ -179,7 +179,7 @@ final class WebhookSinkTests: XCTestCase {
         })
 
         XCTAssertEqual(WebhookMockTransport.captured.count, 2)
-        XCTAssertEqual(sleeps.values, [7_000_000_000])
+        XCTAssertEqual(sleeps.values, [4_000_000_000])
         XCTAssertEqual(attempts.values, [1])
     }
 
@@ -268,12 +268,30 @@ final class WebhookSinkTests: XCTestCase {
         XCTAssertEqual(sleeps.values, [1_000_000_000, 2_000_000_000])
     }
 
-    func test_retryAfterOn503AndCapAt60Seconds() async throws {
+    func test_retryAfterOn503AndCapAt5Seconds() async throws {
         WebhookMockTransport.reset([ok(503, headers: ["Retry-After": "3"]), ok(429, headers: ["Retry-After": "600"]), ok()])
         let sleeps = SleepLog()
         let sink = try makeSink(sleeps: sleeps)
         _ = try await sink.deliver(snapshot: makeSnapshot(), files: makeFiles())
-        XCTAssertEqual(sleeps.values, [3_000_000_000, 60_000_000_000])
+        XCTAssertEqual(sleeps.values, [3_000_000_000, 5_000_000_000])
+    }
+
+    func test_worstCaseRetryWaitStaysWithin10Seconds() async throws {
+        WebhookMockTransport.reset([
+            ok(429, headers: ["Retry-After": "600"]),
+            ok(503, headers: ["Retry-After": "600"]),
+            ok(503, headers: ["Retry-After": "600"])
+        ])
+        let sleeps = SleepLog()
+        let sink = try makeSink(sleeps: sleeps)
+        do {
+            _ = try await sink.deliver(snapshot: makeSnapshot(), files: makeFiles())
+            XCTFail("expected failure after three attempts")
+        } catch let error as WebhookSinkError {
+            XCTAssertEqual(error, .httpStatus(503))
+        }
+        XCTAssertEqual(WebhookMockTransport.captured.count, 3)
+        XCTAssertLessThanOrEqual(sleeps.values.reduce(0, +), 10_000_000_000)
     }
 
     func test_consentRevokedBetweenRetriesStopsDelivery() async throws {
@@ -395,10 +413,12 @@ final class WebhookConfigurationTests: XCTestCase {
     func test_rejectsLocalNetworkHosts() {
         for host in ["localhost", "printer.local", "10.0.0.5", "192.168.1.20", "172.20.0.1", "127.0.0.1", "169.254.1.1", "[::1]", "[fd12::1]",
                      "[::ffff:192.168.1.5]", "[::ffff:127.0.0.1]", "[::ffff:c0a8:105]", "[fe90::1]", "[febf::1]", "[fe80::1]", "[fc00::1]", "[::]", "0.0.0.0", "0.1.2.3",
-                     "127.1", "2130706433", "0x7f000001", "010.0.0.1", "1.2.3", "foo.localhost", "[0:0:0:0:0:0:0:1]"] {
+                     "127.1", "2130706433", "0x7f000001", "010.0.0.1", "foo.localhost", "[0:0:0:0:0:0:0:1]",
+                     "192.168.0x1.5", "127.0x0.0.1", "0x7f.1", "10.0x0.1", "0xc0.0250.1.5", "1.2.3.256", "1.2.3.4.5", "08.8.8.8", "010.010.010.010", "010.8.8.8"] {
             XCTAssertThrowsError(try WebhookConfiguration(endpoint: URL(string: "https://\(host)/hook")!, token: nil), host)
         }
-        for host in ["agent.tail1a2b.ts.net", "172.32.0.1", "hooks.example.com", "100.100.1.1", "100.64.0.1", "172.15.0.1", "8.8.8.8", "[2001:db8::1]", "[::ffff:8.8.8.8]", "[fec0::1]", "1.2.3.4.example.com"] {
+        for host in ["agent.tail1a2b.ts.net", "172.32.0.1", "hooks.example.com", "100.100.1.1", "100.64.0.1", "172.15.0.1", "8.8.8.8", "[2001:db8::1]", "[::ffff:8.8.8.8]", "[fec0::1]", "1.2.3.4.example.com",
+                     "0xcafe.ca", "0x1.cc", "1.2.3", "0x8.0x8.0x8.0x8", "134744072", "0110.8.8.8", "0x10.example.com"] {
             XCTAssertNoThrow(try WebhookConfiguration(endpoint: URL(string: "https://\(host)/hook")!, token: nil), host)
         }
     }

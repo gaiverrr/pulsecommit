@@ -587,7 +587,9 @@ actor Orchestrator {
         let store = historyStore
         do {
             let entryId = try await MainActor.run { () -> UUID? in
+                let id = UUID()
                 let entry = HistoryEntry(
+                    id: id,
                     startedAt: startedAt,
                     finishedAt: finishedAt,
                     status: status,
@@ -600,7 +602,7 @@ actor Orchestrator {
                     telegramMessageReference: telegramMessageReference
                 )
                 try store.append(entry)
-                return store.isNoOp ? nil : entry.id
+                return store.isNoOp ? nil : id
             }
             return (status, entryId)
         } catch {

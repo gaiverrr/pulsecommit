@@ -2,7 +2,7 @@
 
 Pulse Commit has no servers. No developer collects, stores, or sees your data.
 
-Last updated: 2026-11-26.
+Last updated: 2026-11-27.
 
 ## What we collect
 
@@ -16,7 +16,7 @@ GitHub exports contain `summary.json`, `summary.md`, raw `samples/*.json`, worko
 
 Telegram exports contain a Markdown summary and ZIP attachment. Chat members, bot operators and Telegram may process and retain them. An AI service may also process a message only when you chose an AI-backed bot or chat. Pulse Commit itself has no AI integration.
 
-Webhook exports are one HTTPS POST to the URL you enter, with an optional token you set. The request contains `summary.json`, the `summary.md` text and a list of the files in the export. The owner of that URL receives it and can read, keep and share it. Pulse Commit cannot delete it. Raw samples, workout files and routes are not sent. A failed request is retried up to three times, so the endpoint may receive the same export more than once. The Test button sends a request with no Health data. If a third-party AI service runs behind your endpoint, that service receives the data too. Pulse Commit itself has no AI integration.
+Webhook exports send one HTTPS POST per exported day to the URL you enter, with an optional token you set. Each request contains `summary.json`, the `summary.md` text and a list of the files in the export. For the categories you selected, `summary.json` includes each workout's details (type, start and end time, duration, distance, pace, energy, average and maximum heart rate, heart-rate zones, laps and segments) and State of Mind entries. The owner of that URL receives it and can read, keep and share it. Pulse Commit cannot delete it. Raw sample files, workout files and routes are not sent. A request that fails with a network error, HTTP 408, 429 or 5xx is sent up to 3 times in total, so the endpoint may receive the same export more than once. Other HTTP errors are not retried. The Test button sends a request with no Health data. If a third-party AI service runs behind your endpoint, that service receives the data too. Pulse Commit itself has no AI integration.
 
 If you separately opt in to automatic finished-workout messages, Pulse Commit checks Apple Health for workouts saved during the last 72 hours after that opt-in time. It sends one text-only Telegram message per workout to the exact bot, chat and optional topic shown in the disclosure. The message can contain workout type, local start and end time with timezone, recorded duration, and available distance, energy, pace or speed, average and maximum heart rate, laps and segments. It does not include route or GPS points, raw heart-rate samples, custom heart-rate zones, full-day totals, ZIP files or JSON. Delivery can be delayed while the iPhone is locked, offline or not given background time.
 

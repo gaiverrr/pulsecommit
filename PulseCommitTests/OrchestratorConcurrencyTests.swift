@@ -270,4 +270,13 @@ final class OrchestratorConcurrencyTests: XCTestCase {
         let id = try XCTUnwrap(rejected.entryId)
         XCTAssertEqual(try history.entry(id: id)?.errorKind, HistoryErrorKind.exportAlreadyRunning)
     }
+
+    func test_failedRun_withNoOpStore_hasNoEntryId() async {
+        let now = Date(timeIntervalSince1970: 1_776_600_000)
+        let orchestrator = makeOrchestrator(now: now, sink: CountingSink(id: "github"), history: HistoryStore.noOp(), gate: ExportRunGate())
+        let badRequest = ExportRequest(mode: .lastDayOnly, enabledCategoryIds: [], enabledSinkIds: ["github"])
+        let result = await orchestrator.runResult(badRequest)
+        XCTAssertEqual(result.status, .failed)
+        XCTAssertNil(result.entryId)
+    }
 }

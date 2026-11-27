@@ -125,20 +125,69 @@ final class IntentRunnerTests: XCTestCase {
         }
     }
 
-    func test_request_githubOnly_unconfigured_throwsGenericError() async throws {
+    func test_request_both_onlyWebhookConfigured_pointsToWebhookOptions() async throws {
+        let container = try await makeContainer(webhookConfigured: true)
+        container.preferences.githubExportEnabled = false
+        container.preferences.telegramExportEnabled = false
+        for option in [DestinationOption.both, .githubOnly, .telegramOnly] {
+            do {
+                _ = try await IntentRunner.request(
+                    mode: .lastDayOnly,
+                    sinkFilter: option.sinkIds,
+                    container: container
+                )
+                XCTFail("expected webhookNotSelected for \(option)")
+            } catch let error as IntentError {
+                guard case .webhookNotSelected = error else {
+                    return XCTFail("expected webhookNotSelected, got \(error)")
+                }
+                XCTAssertEqual(
+                    String(localized: error.localizedStringResource),
+                    "Only the webhook is set up. Set Destinations to Webhook only or All configured destinations."
+                )
+            }
+        }
+    }
+
+    func test_request_githubOnly_unconfigured_namesSelectedDestination() async throws {
         let container = try await makeContainer()
         container.preferences.githubExportEnabled = false
+        let message = await requestErrorMessage(container: container, filter: .githubOnly)
+        XCTAssertEqual(message, "The destination selected in Destinations is not set up. Connect it in Pulse Commit.")
+    }
+
+    func test_request_telegramOnly_githubAndWebhookConfigured_pointsToWebhookOptions() async throws {
+        let container = try await makeContainer(webhookConfigured: true)
+        container.preferences.telegramExportEnabled = false
+        let message = await requestErrorMessage(container: container, filter: .telegramOnly)
+        XCTAssertEqual(
+            message,
+            "The destination selected in Destinations is not set up. The webhook is used only with Webhook only or All configured destinations."
+        )
+    }
+
+    func test_request_both_nothingConfigured_doesNotSuggestWebhook() async throws {
+        let container = try await makeContainer()
+        container.preferences.githubExportEnabled = false
+        container.preferences.telegramExportEnabled = false
+        let message = await requestErrorMessage(container: container, filter: .both)
+        XCTAssertEqual(message, "No destinations configured. Connect GitHub or Telegram in Pulse Commit.")
+    }
+
+    private func requestErrorMessage(container: AppContainer, filter: DestinationOption) async -> String? {
         do {
             _ = try await IntentRunner.request(
                 mode: .lastDayOnly,
-                sinkFilter: DestinationOption.githubOnly.sinkIds,
+                sinkFilter: filter.sinkIds,
                 container: container
             )
-            XCTFail("expected noDestinationsConfigured")
+            XCTFail("expected an IntentError for \(filter)")
+            return nil
         } catch let error as IntentError {
-            guard case .noDestinationsConfigured = error else {
-                return XCTFail("expected noDestinationsConfigured, got \(error)")
-            }
+            return String(localized: error.localizedStringResource)
+        } catch {
+            XCTFail("unexpected error \(error)")
+            return nil
         }
     }
 

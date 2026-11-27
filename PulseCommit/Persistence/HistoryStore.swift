@@ -19,7 +19,7 @@ final class HistoryStore {
     }
 
     static func inMemory() throws -> HistoryStore {
-        let schema = Schema(versionedSchema: SchemaV1.self)
+        let schema = Schema(versionedSchema: SchemaV2.self)
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: schema,
@@ -29,11 +29,19 @@ final class HistoryStore {
         return HistoryStore(container: container)
     }
 
-    static func onDisk() throws -> HistoryStore {
-        let schema = Schema(versionedSchema: SchemaV1.self)
+    static func onDisk(url: URL? = nil) throws -> HistoryStore {
+        let schema = Schema(versionedSchema: SchemaV2.self)
+        guard let url else {
+            let container = try ModelContainer(
+                for: schema,
+                migrationPlan: PulseCommitMigrationPlan.self
+            )
+            return HistoryStore(container: container)
+        }
         let container = try ModelContainer(
             for: schema,
-            migrationPlan: PulseCommitMigrationPlan.self
+            migrationPlan: PulseCommitMigrationPlan.self,
+            configurations: ModelConfiguration(schema: schema, url: url)
         )
         return HistoryStore(container: container)
     }

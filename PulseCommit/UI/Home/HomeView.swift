@@ -355,15 +355,16 @@ struct HomeView: View {
                 GeometryReader { geo in
                     if case .openEntry(let entryId) = Self.subLabelAction(for: viewModel.phase),
                        let anchor {
-                        let rect = geo[anchor]
+                        let rect = Self.subLabelHitFrame(for: geo[anchor])
                         Button {
                             onOpenEntry(entryId)
                         } label: {
                             Color.clear.contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .frame(width: rect.width, height: rect.height + 28)
+                        .frame(width: rect.width, height: rect.height)
                         .contentShape(Rectangle())
+                        .background(Self.hitAreaReporter("subLabelHitArea"))
                         .position(x: rect.midX, y: rect.midY)
                         .accessibilityLabel(Text(buttonSubLabel ?? ""))
                         .accessibilityHint(Text("Opens this run in History"))
@@ -386,6 +387,7 @@ struct HomeView: View {
             .padding(.bottom, 14)
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .contentShape(Rectangle())
+            .background(Self.hitAreaReporter("exportButton"))
         }
         .buttonStyle(HeroPressStyle())
         .disabled(isRunning)
@@ -398,6 +400,10 @@ struct HomeView: View {
             if case .error = old, case .running = new { return true }
             return false
         }
+    }
+
+    static func subLabelHitFrame(for subLabel: CGRect) -> CGRect {
+        CGRect(x: subLabel.minX, y: subLabel.minY, width: subLabel.width, height: subLabel.height + 28)
     }
 
     static func subLabelAction(for phase: HomeViewModel.Phase) -> SubLabelAction {
@@ -422,6 +428,16 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .opacity(buttonSubLabel == nil ? 0 : 1)
             .anchorPreference(key: SubLabelBoundsKey.self, value: .bounds) { $0 }
+            .background(Self.hitAreaReporter("subLabelText"))
+    }
+
+    private static func hitAreaReporter(_ name: String) -> some View {
+        GeometryReader { geo in
+            Color.clear.preference(
+                key: BigButtonHitAreasKey.self,
+                value: [name: geo.frame(in: .named(bigButtonCoordinateSpace))]
+            )
+        }
     }
 
     private var topZoneContent: some View {
@@ -925,6 +941,14 @@ struct SubLabelBoundsKey: PreferenceKey {
 
     static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
         value = value ?? nextValue()
+    }
+}
+
+struct BigButtonHitAreasKey: PreferenceKey {
+    static let defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue()) { _, new in new }
     }
 }
 

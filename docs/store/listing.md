@@ -16,7 +16,7 @@ Daily Apple Health exports for your own AI agent as JSON and Markdown, via Teleg
 
 ## What's New (1.0.2)
 
-- New Webhook destination: each export is sent as one JSON POST to an HTTPS URL you own, with an optional token. Use it with any agent, automation tool or script that accepts a webhook.
+- New Webhook destination: each exported day is sent as one JSON POST to an HTTPS URL you own, with an optional token. Use it with any agent, automation tool or script that accepts a webhook.
 - Shortcuts exports can target "Webhook only" or "All configured destinations".
 - The Home export button no longer shifts while an export runs.
 - A failed export's reason opens its History entry.
@@ -43,7 +43,7 @@ WHAT IT DOES
 
 Each successful GitHub delivery creates a new commit with summary.json and summary.md, plus samples/*.json for enabled categories, workouts/*.json for workouts present, and routes/*.gpx for workouts with route data. Every JSON file has schema_version 1.0.
 
-Webhook exports are one JSON POST per exported day to an HTTPS URL you own; failed requests are retried up to 3 times with the same Idempotency-Key. It has an optional token (sent as Authorization: Bearer by default, or in a header name you choose). The body holds summary.json, the summary.md text and a file manifest. Redirects and local network addresses are refused.
+Webhook exports are one JSON POST per exported day to an HTTPS URL you own, sent up to 3 times in total on network errors, 408, 429 or 5xx, with one Idempotency-Key. It has an optional token, sent as Authorization: Bearer or in a header you name. The body holds summary.json (with workout details and State of Mind), the summary.md text and a file manifest; raw samples, workout files and routes are not sent. Redirects and local network addresses are refused.
 
 Telegram exports contain a Markdown summary and ZIP attachment. Its setup screen can send a labeled sample message before any export.
 
