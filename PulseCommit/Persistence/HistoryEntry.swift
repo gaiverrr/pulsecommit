@@ -45,9 +45,7 @@ final class HistoryEntry {
     var errorMessage: String?
     /// Structured kind tag for the failure recorded in `errorMessage`.
     /// Used by UI layers to make typed decisions (e.g. session-expiry banner)
-    /// without substring-matching on the human-readable error text. Persisted
-    /// as `String?` so SwiftData lightweight migration handles the schema bump
-    /// without a `VersionedSchema`.
+    /// without substring-matching on the human-readable error text.
     ///
     /// Known values: `"sessionExpired"`. New kinds can be added additively.
     var errorKind: String?
