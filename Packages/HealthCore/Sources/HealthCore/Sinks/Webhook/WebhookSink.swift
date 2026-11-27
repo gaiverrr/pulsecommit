@@ -58,7 +58,7 @@ public final class WebhookSink: Sink {
     private let authorizePayload: @Sendable () async -> Bool
     private let pacer = RequestPacer()
     private let maxAttempts = 3
-    private let maxRetryAfter: UInt64 = 60
+    private let maxRetryAfter: UInt64 = 5
 
     public convenience init(
         id: String = "webhook",
