@@ -129,8 +129,8 @@ const ProgressBar: React.FC<{ frame: number }> = ({ frame }) => {
 const runningShot = (frame: number): { from: ShotName; to: ShotName; mix: number } => {
   const [, b, c] = MARKS.runningShots;
   if (frame < b) return { from: "02-home-running-a", to: "02-home-running-a", mix: 0 };
-  if (frame < c) return { from: "02-home-running-a", to: "03-home-running-b", mix: fade(frame, b, 10) };
-  return { from: "03-home-running-b", to: "04-home-running-c", mix: fade(frame, c, 10) };
+  if (frame < c) return { from: "02-home-running-a", to: "03-home-running-b", mix: 1 };
+  return { from: "03-home-running-b", to: "04-home-running-c", mix: 1 };
 };
 
 const HomeFlow: React.FC<{ frame: number }> = ({ frame }) => {
@@ -158,9 +158,7 @@ const HomeFlow: React.FC<{ frame: number }> = ({ frame }) => {
   }
   return (
     <>
-      <Shot name="04-home-running-c" />
-      <ProgressBar frame={frame} />
-      <div style={{ ...full, opacity: fade(frame, 250, 8) }}>
+      <div style={full}>
         <Shot name="05-home-done" />
         <StaggerRows
           frame={frame}
